@@ -1,6 +1,5 @@
 'use client'
 import { useState, useEffect } from 'react'
-import NavbarComponent from './Navbar'
 import BookCard from '@/components/BookCard'
 import Modal from '@/components/Modal'
 

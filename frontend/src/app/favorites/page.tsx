@@ -1,7 +1,6 @@
 'use client'
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import Navbar from '@/components/Navbar'
 import BookCard from '@/components/BookCard'
 import Modal from '@/components/Modal'
 

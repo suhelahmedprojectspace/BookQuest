@@ -1,25 +1,30 @@
 'use client'
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { useAuth } from '@/contexts/AuthContext'
 
 
+interface FormData {
+  username: string;
+  password: string;
+}
+
 export default function Login() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const { login } = useAuth()
-  const [formData, setFormData] = useState({
-    username: '',
-    password: ''
-  })
+  const [formData, setFormData] = useState<FormData>({
+  username: '',
+  password: ''
+})
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
   // Get redirect URL from query params
   const redirectTo = searchParams.get('redirectTo') || '/browse'
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
     setLoading(true)
     setError('')
@@ -128,7 +133,7 @@ export default function Login() {
 
           <div className="mt-6 text-center">
             <p className="text-slate-600 dark:text-slate-400 text-sm">
-              Don't have an account?{' '}
+             Don&apos;t have an account?{' '}
               <Link 
                 href={`/signup${redirectTo !== '/browse' ? `?redirectTo=${encodeURIComponent(redirectTo)}` : ''}`} 
                 className="text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300 font-semibold transition-colors"
