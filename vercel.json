@@ -7,17 +7,9 @@
       "config": {
         "zeroConfig": true
       }
-    },
-    {
-      "src": "api/app.py",
-      "use": "@vercel/python"
     }
   ],
   "routes": [
-    {
-      "src": "/api/(.*)",
-      "dest": "api/app.py"
-    },
     {
       "src": "/(.*)",
       "dest": "/"
