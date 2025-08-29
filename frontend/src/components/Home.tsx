@@ -459,45 +459,162 @@ export default function Home() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-indigo-50 dark:from-slate-900 dark:to-slate-800">
-      {/* Enhanced Hero Section */}
-      <div className="relative overflow-hidden py-12 md:py-16 lg:py-20">
-        <div className="absolute top-0 left-0 w-full h-96 bg-gradient-to-br from-indigo-100/30 to-purple-100/30 dark:from-indigo-900/20 dark:to-purple-900/20"></div>
-        <div className="absolute top-20 right-10 w-72 h-72 bg-indigo-200/30 rounded-full mix-blend-multiply filter blur-xl animate-blob dark:bg-indigo-800/20"></div>
-        <div className="absolute bottom-20 left-10 w-96 h-96 bg-purple-200/30 rounded-full mix-blend-multiply filter blur-xl animate-blob animation-delay-2000 dark:bg-purple-800/20"></div>
-        
-        <div className="relative container mx-auto px-4">
-          <div className="text-center max-w-4xl mx-auto">
-            <h1 className="text-5xl md:text-6xl lg:text-7xl font-black text-transparent bg-clip-text bg-gradient-to-r from-indigo-600 to-purple-600 mb-6 tracking-tight">
-              BookQuest
-            </h1>
+      
+      {/* Enhanced Elegant Hero Section */}
+      <div className="relative overflow-hidden bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 dark:from-slate-900 dark:via-slate-800 dark:to-indigo-900">
+        {/* Animated Background Elements */}
+        <div className="absolute inset-0 overflow-hidden">
+          <div className="absolute -top-40 -right-32 w-96 h-96 bg-gradient-to-br from-blue-200/40 to-indigo-300/40 dark:from-blue-800/30 dark:to-indigo-900/40 rounded-full mix-blend-multiply blur-3xl animate-float"></div>
+          <div className="absolute -bottom-40 -left-32 w-96 h-96 bg-gradient-to-tr from-purple-200/40 to-pink-300/40 dark:from-purple-800/30 dark:to-pink-900/40 rounded-full mix-blend-multiply blur-3xl animate-float-delayed"></div>
+          <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-64 h-64 bg-gradient-to-r from-indigo-200/30 to-blue-300/30 dark:from-indigo-800/20 dark:to-blue-900/30 rounded-full mix-blend-multiply blur-2xl animate-pulse-slow"></div>
+        </div>
+
+        <div className="relative container mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="min-h-screen flex flex-col justify-center py-12 sm:py-16 lg:py-20">
             
-            <div className="w-24 h-1.5 bg-gradient-to-r from-indigo-500 to-purple-500 mx-auto rounded-full mb-6"></div>
-            
-            <p className="text-xl md:text-2xl text-slate-600 dark:text-slate-300 mb-4 font-light">
-              Discover Your Next Favorite Read
-            </p>
-            
-            <p className="text-base md:text-lg text-slate-500 dark:text-slate-400 mb-10 max-w-2xl mx-auto">
-              Using advanced machine learning, collaborative filtering, and genre analysis to recommend books perfectly matched to your taste.
-            </p>
-            
-            {/* Enhanced Stats Bar */}
-            <div className="grid grid-cols-4 sm:grid-cols-4 gap-4 mb-12 max-w-3xl mx-auto">
-              <div className="text-center bg-white/70 dark:bg-slate-800/70 backdrop-blur-sm rounded-xl p-4 shadow-sm border border-slate-200/50 dark:border-slate-700/50">
-                <div className="text-2xl font-bold text-indigo-600 dark:text-indigo-400 mb-1">10K+</div>
-                <div className="text-sm text-slate-500 dark:text-slate-400 uppercase tracking-wider">Books</div>
+            {/* Main Hero Content */}
+            <div className="text-center max-w-5xl mx-auto">
+              
+              {/* Brand Logo/Icon */}
+              <div className="mb-8 flex justify-center">
+                
               </div>
-              <div className="text-center bg-white/70 dark:bg-slate-800/70 backdrop-blur-sm rounded-xl p-4 shadow-sm border border-slate-200/50 dark:border-slate-700/50">
-                <div className="text-2xl font-bold text-purple-600 dark:text-purple-400 mb-1">{availableGenres.length}</div>
-                <div className="text-sm text-slate-500 dark:text-slate-400 uppercase tracking-wider">Genres</div>
+
+              {/* Main Heading */}
+              <div className="mb-8">
+                <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl xl:text-8xl font-black tracking-tight">
+                  <span className="block text-transparent bg-clip-text bg-gradient-to-r from-indigo-600 via-purple-600 to-blue-600 dark:from-indigo-400 dark:via-purple-400 dark:to-blue-400 mb-2">
+                    BookQuest
+                  </span>
+                  <span className="block text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-light text-slate-700 dark:text-slate-300 mt-4">
+                    Discover Your Literary Journey
+                  </span>
+                </h1>
               </div>
-              <div className="text-center bg-white/70 dark:bg-slate-800/70 backdrop-blur-sm rounded-xl p-4 shadow-sm border border-slate-200/50 dark:border-slate-700/50">
-                <div className="text-2xl font-bold text-emerald-600 dark:text-emerald-400 mb-1">{Object.keys(userPreferences).length}</div>
-                <div className="text-sm text-slate-500 dark:text-slate-400 uppercase tracking-wider">Rated</div>
+
+              {/* Decorative Element */}
+              <div className="flex justify-center mb-8">
+                <div className="flex items-center space-x-2">
+                  <div className="w-12 sm:w-16 h-0.5 bg-gradient-to-r from-transparent to-indigo-500 rounded-full"></div>
+                  <div className="w-3 h-3 bg-gradient-to-r from-indigo-500 to-purple-500 rounded-full animate-pulse"></div>
+                  <div className="w-16 sm:w-24 h-0.5 bg-gradient-to-r from-indigo-500 to-purple-500 rounded-full"></div>
+                  <div className="w-3 h-3 bg-gradient-to-r from-purple-500 to-pink-500 rounded-full animate-pulse animation-delay-1000"></div>
+                  <div className="w-12 sm:w-16 h-0.5 bg-gradient-to-r from-purple-500 to-transparent rounded-full"></div>
+                </div>
               </div>
-              <div className="text-center bg-white/70 dark:bg-slate-800/70 backdrop-blur-sm rounded-xl p-4 shadow-sm border border-slate-200/50 dark:border-slate-700/50">
-                <div className="text-2xl font-bold text-pink-600 dark:text-pink-400 mb-1">{safeFavorites.length}</div>
-                <div className="text-sm text-slate-500 dark:text-slate-400 uppercase tracking-wider">Favorites</div>
+              
+              {/* Subtitle and Description */}
+              <div className="max-w-4xl mx-auto mb-12">
+                <p className="text-lg sm:text-xl md:text-2xl text-slate-600 dark:text-slate-300 mb-6 font-medium leading-relaxed">
+                  Where artificial intelligence meets literary passion
+                </p>
+                
+                <p className="text-base sm:text-lg text-slate-500 dark:text-slate-400 leading-relaxed max-w-3xl mx-auto px-4">
+                  Experience the future of book discovery with our intelligent recommendation engine. 
+                  Using advanced machine learning, collaborative filtering, and deep genre analysis, 
+                  we curate personalized reading experiences that evolve with your literary taste.
+                </p>
+              </div>
+
+              {/* Feature Highlights */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-6 mb-12 max-w-4xl mx-auto px-4">
+                <div className="group">
+                  <div className="relative">
+                    <div className="absolute inset-0 bg-gradient-to-r from-blue-100 to-indigo-100 dark:from-blue-900/30 dark:to-indigo-900/30 rounded-xl blur opacity-50 group-hover:opacity-70 transition-opacity"></div>
+                    <div className="relative bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm p-4 sm:p-6 rounded-xl border border-slate-200/50 dark:border-slate-700/50 hover:border-indigo-300/50 dark:hover:border-indigo-500/30 transition-all duration-300">
+                      <div className="text-2xl sm:text-3xl mb-3">🎯</div>
+                      <h3 className="text-sm sm:text-base font-semibold text-slate-800 dark:text-white mb-2">Smart Recommendations</h3>
+                      <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-400 leading-relaxed">AI-powered suggestions tailored to your unique reading preferences</p>
+                    </div>
+                  </div>
+                </div>
+                
+                <div className="group">
+                  <div className="relative">
+                    <div className="absolute inset-0 bg-gradient-to-r from-purple-100 to-pink-100 dark:from-purple-900/30 dark:to-pink-900/30 rounded-xl blur opacity-50 group-hover:opacity-70 transition-opacity"></div>
+                    <div className="relative bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm p-4 sm:p-6 rounded-xl border border-slate-200/50 dark:border-slate-700/50 hover:border-purple-300/50 dark:hover:border-purple-500/30 transition-all duration-300">
+                      <div className="text-2xl sm:text-3xl mb-3">🌟</div>
+                      <h3 className="text-sm sm:text-base font-semibold text-slate-800 dark:text-white mb-2">Diverse Discovery</h3>
+                      <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-400 leading-relaxed">Explore vast libraries across genres, authors, and literary styles</p>
+                    </div>
+                  </div>
+                </div>
+                
+                <div className="group sm:col-span-1 col-span-1">
+                  <div className="relative">
+                    <div className="absolute inset-0 bg-gradient-to-r from-emerald-100 to-teal-100 dark:from-emerald-900/30 dark:to-teal-900/30 rounded-xl blur opacity-50 group-hover:opacity-70 transition-opacity"></div>
+                    <div className="relative bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm p-4 sm:p-6 rounded-xl border border-slate-200/50 dark:border-slate-700/50 hover:border-emerald-300/50 dark:hover:border-emerald-500/30 transition-all duration-300">
+                      <div className="text-2xl sm:text-3xl mb-3">📖</div>
+                      <h3 className="text-sm sm:text-base font-semibold text-slate-800 dark:text-white mb-2">Personal Library</h3>
+                      <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-400 leading-relaxed">Build and manage your reading journey with favorites and ratings</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Enhanced Stats Bar */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 sm:gap-6 mb-12 max-w-4xl mx-auto px-4">
+                <div className="text-center">
+                  <div className="relative">
+                    <div className="absolute inset-0 bg-gradient-to-r from-indigo-100 to-blue-100 dark:from-indigo-900/30 dark:to-blue-900/30 rounded-2xl blur opacity-40"></div>
+                    <div className="relative bg-white/90 dark:bg-slate-800/90 backdrop-blur-sm rounded-2xl p-4 sm:p-6 shadow-lg border border-slate-200/50 dark:border-slate-700/50">
+                      <div className="text-2xl sm:text-3xl lg:text-4xl font-black text-transparent bg-clip-text bg-gradient-to-r from-indigo-600 to-blue-600 mb-2">10K+</div>
+                      <div className="text-xs sm:text-sm text-slate-600 dark:text-slate-400 font-semibold uppercase tracking-wider">Books</div>
+                    </div>
+                  </div>
+                </div>
+                
+                <div className="text-center">
+                  <div className="relative">
+                    <div className="absolute inset-0 bg-gradient-to-r from-purple-100 to-pink-100 dark:from-purple-900/30 dark:to-pink-900/30 rounded-2xl blur opacity-40"></div>
+                    <div className="relative bg-white/90 dark:bg-slate-800/90 backdrop-blur-sm rounded-2xl p-4 sm:p-6 shadow-lg border border-slate-200/50 dark:border-slate-700/50">
+                      <div className="text-2xl sm:text-3xl lg:text-4xl font-black text-transparent bg-clip-text bg-gradient-to-r from-purple-600 to-pink-600 mb-2">{availableGenres.length}+</div>
+                      <div className="text-xs sm:text-sm text-slate-600 dark:text-slate-400 font-semibold uppercase tracking-wider">Genres</div>
+                    </div>
+                  </div>
+                </div>
+                
+                <div className="text-center">
+                  <div className="relative">
+                    <div className="absolute inset-0 bg-gradient-to-r from-emerald-100 to-teal-100 dark:from-emerald-900/30 dark:to-teal-900/30 rounded-2xl blur opacity-40"></div>
+                    <div className="relative bg-white/90 dark:bg-slate-800/90 backdrop-blur-sm rounded-2xl p-4 sm:p-6 shadow-lg border border-slate-200/50 dark:border-slate-700/50">
+                      <div className="text-2xl sm:text-3xl lg:text-4xl font-black text-transparent bg-clip-text bg-gradient-to-r from-emerald-600 to-teal-600 mb-2">{Object.keys(userPreferences).length}</div>
+                      <div className="text-xs sm:text-sm text-slate-600 dark:text-slate-400 font-semibold uppercase tracking-wider">Rated</div>
+                    </div>
+                  </div>
+                </div>
+                
+                <div className="text-center">
+                  <div className="relative">
+                    <div className="absolute inset-0 bg-gradient-to-r from-rose-100 to-orange-100 dark:from-rose-900/30 dark:to-orange-900/30 rounded-2xl blur opacity-40"></div>
+                    <div className="relative bg-white/90 dark:bg-slate-800/90 backdrop-blur-sm rounded-2xl p-4 sm:p-6 shadow-lg border border-slate-200/50 dark:border-slate-700/50">
+                      <div className="text-2xl sm:text-3xl lg:text-4xl font-black text-transparent bg-clip-text bg-gradient-to-r from-rose-600 to-orange-600 mb-2">{safeFavorites.length}</div>
+                      <div className="text-xs sm:text-sm text-slate-600 dark:text-slate-400 font-semibold uppercase tracking-wider">Favorites</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Call to Action */}
+              <div className="flex flex-col sm:flex-row justify-center items-center gap-4 sm:gap-6">
+                <div className="flex items-center text-slate-500 dark:text-slate-400 text-sm">
+                  <svg className="w-4 h-4 mr-2 text-emerald-500" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                  </svg>
+                  Free to use
+                </div>
+                <div className="flex items-center text-slate-500 dark:text-slate-400 text-sm">
+                  <svg className="w-4 h-4 mr-2 text-blue-500" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M6.267 3.455a3.066 3.066 0 001.745-.723 3.066 3.066 0 013.976 0 3.066 3.066 0 001.745.723 3.066 3.066 0 012.812 2.812c.051.643.304 1.254.723 1.745a3.066 3.066 0 010 3.976 3.066 3.066 0 00-.723 1.745 3.066 3.066 0 01-2.812 2.812 3.066 3.066 0 00-1.745.723 3.066 3.066 0 01-3.976 0 3.066 3.066 0 00-1.745-.723 3.066 3.066 0 01-2.812-2.812 3.066 3.066 0 00-.723-1.745 3.066 3.066 0 010-3.976 3.066 3.066 0 00.723-1.745 3.066 3.066 0 012.812-2.812zm7.44 5.252a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                  </svg>
+                  AI-powered
+                </div>
+                <div className="flex items-center text-slate-500 dark:text-slate-400 text-sm">
+                  <svg className="w-4 h-4 mr-2 text-purple-500" fill="currentColor" viewBox="0 0 20 20">
+                    <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  Personalized
+                </div>
               </div>
             </div>
           </div>
@@ -865,7 +982,7 @@ export default function Home() {
                 Discover books within your favorite genres and explore new ones
               </p>
             </div>
-
+            
             <div className="group text-center">
               <div className="relative mb-8">
                 <div className="absolute inset-0 bg-gradient-to-r from-pink-100 to-indigo-100 dark:from-pink-900/30 dark:to-indigo-900/30 rounded-2xl blur opacity-20 group-hover:opacity-30 transition-opacity"></div>
@@ -909,15 +1026,41 @@ export default function Home() {
         />
       )}
 
+      {/* Enhanced CSS Animations */}
       <style jsx>{`
+        @keyframes float {
+          0%, 100% { transform: translateY(0px) rotate(0deg); }
+          50% { transform: translateY(-20px) rotate(180deg); }
+        }
+        @keyframes float-delayed {
+          0%, 100% { transform: translateY(0px) rotate(0deg); }
+          50% { transform: translateY(-30px) rotate(-180deg); }
+        }
+        @keyframes pulse-slow {
+          0%, 100% { opacity: 0.3; }
+          50% { opacity: 0.8; }
+        }
         @keyframes blob {
           0% { transform: translate(0px, 0px) scale(1); }
           33% { transform: translate(30px, -50px) scale(1.1); }
           66% { transform: translate(-20px, 20px) scale(0.9); }
           100% { transform: translate(0px, 0px) scale(1); }
         }
+        .animate-float {
+          animation: float 8s ease-in-out infinite;
+        }
+        .animate-float-delayed {
+          animation: float-delayed 10s ease-in-out infinite;
+          animation-delay: 2s;
+        }
+        .animate-pulse-slow {
+          animation: pulse-slow 4s ease-in-out infinite;
+        }
         .animate-blob {
           animation: blob 7s infinite;
+        }
+        .animation-delay-1000 {
+          animation-delay: 1s;
         }
         .animation-delay-2000 {
           animation-delay: 2s;

@@ -1,10 +1,20 @@
 import React, { useState, useEffect } from 'react'
+import RecommendationChart from './RecommendationChart'
 
 interface Book {
   title: string
   author: string
   rating: number
   image: string
+  similarity?: number
+  method?: string
+  recommendationReason?: string
+  keywords?: string[]
+  recommendationFactors?: Array<{
+    factor: string
+    score: number
+    color?: string
+  }>
 }
 
 interface BookDetails {
@@ -54,33 +64,61 @@ export default function Modal({
   onToggleFavorite, 
   onRate 
 }: ModalProps) {
-  const [imageError, setImageError] = useState(false);
-  const [expanded, setExpanded] = useState(false);
-  const isFavorite = favorites.some(fav => fav.title === book.title);
+  const [imageError, setImageError] = useState(false)
+  const [expanded, setExpanded] = useState(false)
+  const [showChart, setShowChart] = useState(false)
+  const isFavorite = favorites.some(fav => fav.title === book.title)
 
   // Close modal on Escape key press
   useEffect(() => {
     const handleEscKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
-    };
+      if (e.key === 'Escape') onClose()
+    }
     
-    document.addEventListener('keydown', handleEscKey);
-    return () => document.removeEventListener('keydown', handleEscKey);
-  }, [onClose]);
+    document.addEventListener('keydown', handleEscKey)
+    return () => document.removeEventListener('keydown', handleEscKey)
+  }, [onClose])
 
   // Prevent body scrolling when modal is open
   useEffect(() => {
-    document.body.style.overflow = 'hidden';
+    document.body.style.overflow = 'hidden'
     return () => {
-      document.body.style.overflow = 'unset';
-    };
-  }, []);
+      document.body.style.overflow = 'unset'
+    }
+  }, [])
+
+  // Generate recommendation factors if not provided
+  const getRecommendationFactors = () => {
+    if (book.recommendationFactors) {
+      return book.recommendationFactors
+    }
+
+    // Generate based on available data
+    const factors = []
+    
+    if (book.method === 'genre') {
+      factors.push({ factor: 'Genre Match', score: 85, color: '#8B5CF6' })
+      factors.push({ factor: 'Content Similarity', score: 72, color: '#06B6D4' })
+      factors.push({ factor: 'User Preference', score: 68, color: '#10B981' })
+    } else if (book.method === 'author') {
+      factors.push({ factor: 'Author Match', score: 90, color: '#8B5CF6' })
+      factors.push({ factor: 'Writing Style', score: 78, color: '#06B6D4' })
+      factors.push({ factor: 'Genre Similarity', score: 65, color: '#10B981' })
+    } else {
+      factors.push({ factor: 'Content Match', score: Math.round((book.similarity || 0.75) * 100), color: '#8B5CF6' })
+      factors.push({ factor: 'Genre Similarity', score: 75, color: '#06B6D4' })
+      factors.push({ factor: 'User Preference', score: 68, color: '#10B981' })
+      factors.push({ factor: 'Collaborative Filter', score: 60, color: '#F59E0B' })
+    }
+
+    return factors
+  }
 
   const getBestAvailableImage = () => {
-    if (imageError) return null;
+    if (imageError) return null
     
-    const images = bookDetails?.imageLinks;
-    if (!images) return book.image || null;
+    const images = bookDetails?.imageLinks
+    if (!images) return book.image || null
     
     return (
       images.extraLarge ||
@@ -91,37 +129,37 @@ export default function Modal({
       images.smallThumbnail ||
       book.image ||
       null
-    );
-  };
+    )
+  }
 
   const formatDate = (dateString?: string) => {
-    if (!dateString) return 'Unknown';
+    if (!dateString) return 'Unknown'
     
     try {
-      const date = new Date(dateString);
+      const date = new Date(dateString)
       return isNaN(date.getTime()) ? dateString : date.toLocaleDateString('en-US', {
         year: 'numeric',
         month: 'long',
         day: 'numeric'
-      });
+      })
     } catch {
-      return dateString;
+      return dateString
     }
-  };
+  }
 
   const truncateDescription = (text: string, maxLength: number = 300) => {
-    if (expanded || text.length <= maxLength) return text;
-    return text.slice(0, maxLength) + '...';
-  };
+    if (expanded || text.length <= maxLength) return text
+    return text.slice(0, maxLength) + '...'
+  }
 
-  const bookImage = getBestAvailableImage();
-  const displayDescription = bookDetails?.description ? truncateDescription(bookDetails.description) : '';
-  const showReadMore = bookDetails?.description && bookDetails.description.length > 300 && !expanded;
+  const bookImage = getBestAvailableImage()
+  const displayDescription = bookDetails?.description ? truncateDescription(bookDetails.description) : ''
+  const showReadMore = bookDetails?.description && bookDetails.description.length > 300 && !expanded
 
   return (
     <div className="fixed inset-0 bg-black/85 backdrop-blur-md flex items-center justify-center z-50 p-4" onClick={onClose}>
       <div 
-        className="bg-gradient-to-br from-gray-900 to-gray-800 rounded-2xl max-w-4xl w-full max-h-[95vh] overflow-hidden flex flex-col shadow-2xl border border-gray-700" 
+        className="bg-gradient-to-br from-gray-900 to-gray-800 rounded-2xl max-w-6xl w-full max-h-[95vh] overflow-hidden flex flex-col shadow-2xl border border-gray-700" 
         onClick={(e) => e.stopPropagation()}
         role="dialog"
         aria-labelledby="modal-title"
@@ -153,6 +191,17 @@ export default function Modal({
                   </>
                 )}
               </button>
+
+              {/* Show Chart Button */}
+              {book.method && (
+                <button
+                  onClick={() => setShowChart(!showChart)}
+                  className="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg transition-all duration-200"
+                >
+                  <span>📊</span>
+                  {showChart ? 'Hide' : 'Show'} Recommendation Analysis
+                </button>
+              )}
               
               {/* Rating Stars */}
               <div className="flex items-center gap-2 bg-gray-700/50 px-3 py-2 rounded-lg">
@@ -209,6 +258,54 @@ export default function Modal({
             </div>
           ) : bookDetails ? (
             <div className="p-6">
+              {/* Recommendation Chart */}
+              {showChart && book.method && (
+                <div className="mb-8">
+                  <RecommendationChart data={getRecommendationFactors()} />
+                </div>
+              )}
+
+              {/* Recommendation Explanation Section */}
+              {book.method && (
+                <div className="mb-8 p-4 border-l-4 border-indigo-500 bg-indigo-900/20 rounded text-indigo-200">
+                  <h3 className="mb-2 text-lg font-semibold text-indigo-400">
+                    📍 Why this book was recommended
+                  </h3>
+                  <p className="mb-3">{book.recommendationReason || `Recommended based on ${book.method}`}</p>
+
+                  {/* Confidence bar */}
+                  {book.similarity !== undefined && (
+                    <div className="mb-3">
+                      <div className="text-sm mb-1">Overall Confidence: {(book.similarity * 100).toFixed(1)}%</div>
+                      <div className="w-full h-3 bg-indigo-700 rounded">
+                        <div
+                          className="h-3 rounded bg-indigo-500 transition-all duration-500"
+                          style={{ width: `${book.similarity * 100}%` }}
+                        />
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Keywords */}
+                  {book.keywords && book.keywords.length > 0 && (
+                    <div>
+                      <div className="text-sm font-semibold mb-2">Key Themes:</div>
+                      <div className="flex flex-wrap gap-2">
+                        {book.keywords.slice(0, 5).map((word, idx) => (
+                          <span
+                            key={idx}
+                            className="bg-indigo-600/50 rounded px-2 py-1 text-xs select-none"
+                            title={word}
+                          >
+                            {word}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
               <div className="flex flex-col md:flex-row gap-8 mb-8">
                 {/* Book Cover */}
                 <div className="flex-shrink-0 w-full md:w-48 mx-auto">

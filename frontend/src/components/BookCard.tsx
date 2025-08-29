@@ -6,6 +6,14 @@ interface Book {
   rating: number
   image: string
   similarity?: number
+  method?: string     
+  recommendationReason?: string 
+  keywords?: string[]
+  recommendationFactors?: Array<{
+    factor: string
+    score: number
+    color?: string
+  }>
 }
 
 interface BookCardProps {
@@ -33,7 +41,6 @@ export default function BookCard({ book, isFavorite, onToggleFavorite, onViewDet
     } else {
       navigator.clipboard.writeText(`${shareText}\n${shareUrl}`)
         .then(() => {
-          // Create a nice toast notification instead of alert
           const toast = document.createElement('div')
           toast.className = 'fixed top-4 right-4 bg-emerald-500 text-white px-4 py-2 rounded-lg shadow-lg z-50 transition-all duration-300'
           toast.textContent = '📋 Link copied to clipboard!'
@@ -128,7 +135,6 @@ export default function BookCard({ book, isFavorite, onToggleFavorite, onViewDet
                   setImageLoaded(true)
                 }}
               />
-              {/* Subtle overlay on hover */}
               <div className={`absolute inset-0 bg-gradient-to-t from-black/20 via-transparent to-transparent rounded-lg transition-opacity duration-300 ${
                 isHovered ? 'opacity-100' : 'opacity-0'
               }`} />
@@ -155,6 +161,15 @@ export default function BookCard({ book, isFavorite, onToggleFavorite, onViewDet
             <p className="text-slate-600 dark:text-slate-400 mb-3 text-sm font-medium">
               by <span className="text-slate-700 dark:text-slate-300">{book.author}</span>
             </p>
+          )}
+
+          {/* Recommendation Reason */}
+          {book.recommendationReason && (
+            <div className="mb-3 p-2 bg-indigo-50 dark:bg-indigo-900/20 rounded-lg border border-indigo-200 dark:border-indigo-700">
+              <div className="text-xs text-indigo-700 dark:text-indigo-300 font-medium">
+                📍 {book.recommendationReason}
+              </div>
+            </div>
           )}
           
           {book.rating > 0 && (
@@ -201,9 +216,8 @@ export default function BookCard({ book, isFavorite, onToggleFavorite, onViewDet
             </div>
           )}
           
-          {/* Action Buttons - Now positioned at the bottom without overlap */}
+          {/* Action Buttons */}
           <div className="flex items-center justify-between mt-4 pt-3 border-t border-slate-200/50 dark:border-slate-700/30">
-            {/* View Details Button */}
             <button 
               onClick={onViewDetails}
               className="flex items-center text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300 transition-colors duration-300 text-sm font-medium"
@@ -220,7 +234,6 @@ export default function BookCard({ book, isFavorite, onToggleFavorite, onViewDet
               </svg>
             </button>
             
-            {/* Share Button - Now positioned next to View Details */}
             <button 
               onClick={(e) => {
                 e.stopPropagation()

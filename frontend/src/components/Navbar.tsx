@@ -80,17 +80,43 @@ export default function NavbarComponent({ favoritesCount = 0 }: NavbarProps) {
     )
   }
 
+const Logoele=()=>{
+    return(
+      <span className="flex items-center gap-3">
+  {/* Fancy Logo Icon */}
+  <div className="relative">
+    <div className="flex items-center justify-center w-10 h-10 bg-gradient-to-br from-purple-500 via-violet-500 to-indigo-500 rounded-xl shadow-lg">
+      <svg 
+        className="w-6 h-6 text-white" 
+        fill="currentColor" 
+        viewBox="0 0 24 24"
+      >
+        <path d="M4 2v20l8-4 8 4V2H4zm2 2h12v14.5l-6-3-6 3V4z"/>
+        <circle cx="12" cy="9" r="2" fill="currentColor"/>
+      </svg>
+    </div>
+    {/* Decorative dot */}
+    <div className="absolute -top-1 -right-1 w-3 h-3 bg-gradient-to-br from-yellow-400 to-orange-500 rounded-full shadow-sm"></div>
+  </div>
+  
+  {/* Fancy Text Logo */}
+  <div className="flex flex-col">
+    <span className="text-2xl font-bold bg-gradient-to-r from-purple-600 via-violet-600 to-indigo-600 bg-clip-text text-transparent tracking-tight">
+      BookQuest
+    </span>
+    <span className="text-xs text-gray-500 font-medium tracking-widest -mt-1">
+      DISCOVER
+    </span>
+  </div>
+</span>
+
+    )
+  }
   return (
     <div>
       <Navbar
         className="bg-white/80 backdrop-blur-sm border-b border-slate-200/50 sticky top-0 z-50"
-        logo={
-          <Link href="/" className="flex items-center">
-            <span className="text-2xl font-black text-transparent bg-clip-text bg-gradient-to-r from-indigo-600 to-purple-600">
-              BookQuest
-            </span>
-          </Link>
-        }
+        logo={<Logoele/>}
         menuItems={getMenuItems()}
       >
       
