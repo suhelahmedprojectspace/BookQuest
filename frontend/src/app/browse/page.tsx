@@ -1,6 +1,7 @@
 'use client'
 import { useState, useEffect } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
+import { Suspense } from 'react'
 import BookCard from '@/components/BookCard'
 import Modal from '@/components/Modal'
 
@@ -248,6 +249,8 @@ export default function Browse() {
   }
 
   return (
+       <Suspense fallback={<div className="flex items-center justify-center min-h-screen">Loading...</div>}>
+
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-indigo-50 dark:from-slate-900 dark:to-slate-800">
       {/* Header Section */}
       <header className="relative overflow-hidden py-16 md:py-20 lg:py-24">
@@ -472,5 +475,6 @@ export default function Browse() {
         }
       `}</style>
     </div>
+       </Suspense>
   )
 }
