@@ -12,7 +12,7 @@ const geistSans = Geist({
 });
 
 const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
+  variable: "--font-geist-mono", 
   subsets: ["latin"],
 });
 
@@ -24,6 +24,7 @@ export const metadata: Metadata = {
   }
 };
 
+// ✅ CRITICAL: Root layout MUST return html > body structure
 export default function RootLayout({
   children,
 }: {
