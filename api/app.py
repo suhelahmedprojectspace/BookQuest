@@ -18,11 +18,8 @@ from urllib.parse import unquote
 import re
 from collections import Counter
 from dotenv import load_dotenv
-import threading
 import time
 import pickle
-import signal
-import sys
 
 # Load environment variables
 load_dotenv()
@@ -38,7 +35,6 @@ CORS(app,
          "http://localhost:3000", 
          "http://127.0.0.1:3000",
          "https://*.vercel.app",  # Allow all Vercel deployments
-         "https://bookquest-4.onrender.com"  # Your backend URL
      ],
      methods=['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
      allow_headers=['Content-Type', 'Authorization'],
@@ -55,7 +51,7 @@ PROCESSED_DATA_PATH = os.path.join(basedir, 'processed_data.pkl')
 FEATURES_PATH = os.path.join(basedir, 'features.pkl')
 MODELS_PATH = os.path.join(basedir, 'models.pkl')
 
-# Global variables for models - STARTUP LOADING
+# Global variables for models - SYNCHRONOUS LOADING
 content_model = None
 collaborative_model = None
 data = None
@@ -63,16 +59,6 @@ user_item_matrix = None
 book_features = None
 vectorizer = None
 models_loaded = False
-models_loading = False
-loading_lock = threading.Lock()
-
-# Signal handlers for graceful shutdown
-def signal_handler(sig, frame):
-    print('🛑 Graceful shutdown initiated...')
-    sys.exit(0)
-
-signal.signal(signal.SIGTERM, signal_handler)
-signal.signal(signal.SIGINT, signal_handler)
 
 def get_current_timestamp():
     """Get current timestamp as ISO string for SQLite"""
@@ -80,8 +66,6 @@ def get_current_timestamp():
 
 def create_optimized_dataset():
     """Create and save optimized, smaller dataset for faster loading"""
-    global data
-    
     print("🔄 PREPROCESSING: Creating optimized dataset...")
     start_time = time.time()
     
@@ -93,7 +77,7 @@ def create_optimized_dataset():
         
         for chunk in pd.read_csv(CSV_PATH, low_memory=False, chunksize=chunk_size):
             chunks.append(chunk)
-            if len(chunks) * chunk_size >= 100000:  # Limit to 100K books max
+            if len(chunks) * chunk_size >= 50000:  # Reduced to 50K for faster loading
                 break
         
         full_data = pd.concat(chunks, ignore_index=True)
@@ -121,7 +105,7 @@ def create_optimized_dataset():
         full_data['year'] = pd.to_numeric(full_data['year'], errors='coerce').fillna(2000).astype(int)
         
         # Take a representative sample
-        sample_size = min(50000, len(full_data))  # Reduced for faster processing
+        sample_size = min(25000, len(full_data))  # Reduced for speed
         data = full_data.sample(n=sample_size, random_state=42).reset_index(drop=True)
         
         print(f"📊 Selected {len(data)} representative books")
@@ -182,136 +166,129 @@ def create_optimized_dataset():
         print(f"❌ PREPROCESSING ERROR: {e}")
         return None
 
-def load_models_at_startup():
-    """Load all models and data at startup - NO LAZY LOADING"""
+def load_models_sync():
+    """Load all models and data SYNCHRONOUSLY - NO THREADING"""
     global content_model, collaborative_model, data, user_item_matrix, book_features, vectorizer
-    global models_loaded, models_loading
+    global models_loaded
     
-    with loading_lock:
-        if models_loaded or models_loading:
-            return models_loaded
+    try:
+        print("🚀 SYNCHRONOUS LOADING: Starting model and data loading...")
+        start_time = time.time()
         
-        models_loading = True
+        # Try to load preprocessed data first
+        if os.path.exists(PROCESSED_DATA_PATH):
+            print("📦 Loading preprocessed data...")
+            with open(PROCESSED_DATA_PATH, 'rb') as f:
+                data = pickle.load(f)
+            print(f"✅ Loaded {len(data)} preprocessed books")
+        else:
+            print("📊 Creating preprocessed data (first time)...")
+            data = create_optimized_dataset()
+            if data is None:
+                raise Exception("Failed to create dataset")
         
-        try:
-            print("🚀 STARTUP LOADING: Starting model and data loading...")
-            start_time = time.time()
+        # Check if models are already saved
+        if os.path.exists(MODELS_PATH) and os.path.exists(FEATURES_PATH):
+            print("🤖 Loading pre-trained models...")
             
-            # Try to load preprocessed data first
-            if os.path.exists(PROCESSED_DATA_PATH):
-                print("📦 Loading preprocessed data...")
-                with open(PROCESSED_DATA_PATH, 'rb') as f:
-                    data = pickle.load(f)
-                print(f"✅ Loaded {len(data)} preprocessed books")
-            else:
-                print("📊 Creating preprocessed data (first time)...")
-                data = create_optimized_dataset()
-                if data is None:
-                    raise Exception("Failed to create dataset")
+            with open(MODELS_PATH, 'rb') as f:
+                model_data = pickle.load(f)
+                content_model = model_data['content_model']
+                vectorizer = model_data['vectorizer']
+                collaborative_model = model_data.get('collaborative_model')
+                user_item_matrix = model_data.get('user_item_matrix')
             
-            # Check if models are already saved
-            if os.path.exists(MODELS_PATH) and os.path.exists(FEATURES_PATH):
-                print("🤖 Loading pre-trained models...")
+            with open(FEATURES_PATH, 'rb') as f:
+                book_features = pickle.load(f)
                 
-                with open(MODELS_PATH, 'rb') as f:
-                    model_data = pickle.load(f)
-                    content_model = model_data['content_model']
-                    vectorizer = model_data['vectorizer']
-                    collaborative_model = model_data.get('collaborative_model')
-                    user_item_matrix = model_data.get('user_item_matrix')
+            print("✅ Pre-trained models loaded successfully!")
+        else:
+            print("🔧 Training models (first time)...")
+            
+            # Create TF-IDF vectorizer (optimized)
+            print("🔧 Creating TF-IDF vectorizer...")
+            vectorizer = TfidfVectorizer(
+                stop_words='english',
+                max_features=3000,  # Reduced
+                ngram_range=(1, 2),  # Simplified
+                min_df=3,
+                max_df=0.9,
+                lowercase=True,
+                strip_accents='unicode'
+            )
+            
+            book_features = vectorizer.fit_transform(data['combined_features'])
+            print(f"📊 Created feature matrix: {book_features.shape}")
+            
+            # Content-based model with optimized parameters
+            print("🤖 Training content-based recommendation model...")
+            content_model = NearestNeighbors(
+                metric='cosine', 
+                algorithm='brute', 
+                n_neighbors=min(15, len(data))  # Reduced neighbors
+            )
+            content_model.fit(book_features)
+            print("✅ Content-based model trained!")
+            
+            # Create collaborative filtering model
+            print("🤝 Creating collaborative filtering model...")
+            try:
+                n_users = min(200, len(data))  # Reduced users
+                n_books = len(data)
                 
-                with open(FEATURES_PATH, 'rb') as f:
-                    book_features = pickle.load(f)
-                    
-                print("✅ Pre-trained models loaded successfully!")
-            else:
-                print("🔧 Training models (first time)...")
+                # Generate synthetic user-book interaction matrix
+                np.random.seed(42)
+                user_book_ratings = np.random.choice([0, 1, 2, 3, 4, 5], 
+                                                   size=(n_users, n_books), 
+                                                   p=[0.85, 0.03, 0.03, 0.06, 0.02, 0.01])
                 
-                # Create TF-IDF vectorizer (optimized)
-                print("🔧 Creating TF-IDF vectorizer...")
-                vectorizer = TfidfVectorizer(
-                    stop_words='english',
-                    max_features=5000,  # Reduced from 8000
-                    ngram_range=(1, 2),  # Reduced from (1, 3)
-                    min_df=3,
-                    max_df=0.9,
-                    lowercase=True,
-                    strip_accents='unicode'
-                )
+                user_item_matrix = csr_matrix(user_book_ratings)
                 
-                book_features = vectorizer.fit_transform(data['combined_features'])
-                print(f"📊 Created feature matrix: {book_features.shape}")
-                
-                # Content-based model with optimized parameters
-                print("🤖 Training content-based recommendation model...")
-                content_model = NearestNeighbors(
-                    metric='cosine', 
-                    algorithm='brute', 
-                    n_neighbors=min(20, len(data))  # Reduced neighbors
-                )
-                content_model.fit(book_features)
-                print("✅ Content-based model trained!")
-                
-                # Create collaborative filtering model
-                print("🤝 Creating collaborative filtering model...")
-                try:
-                    n_users = min(500, len(data))  # Reduced users
-                    n_books = len(data)
-                    
-                    # Generate synthetic user-book interaction matrix
-                    np.random.seed(42)
-                    user_book_ratings = np.random.choice([0, 1, 2, 3, 4, 5], 
-                                                       size=(n_users, n_books), 
-                                                       p=[0.8, 0.04, 0.04, 0.08, 0.04, 0.04])
-                    
-                    user_item_matrix = csr_matrix(user_book_ratings)
-                    
-                    # Use SVD for dimensionality reduction
-                    if user_item_matrix.shape[0] > 20 and user_item_matrix.shape[1] > 20:
-                        collaborative_model = TruncatedSVD(n_components=30, random_state=42)
-                        collaborative_model.fit(user_item_matrix)
-                        print("✅ Collaborative filtering model created successfully!")
-                    else:
-                        print("⚠️ Dataset too small for collaborative filtering")
-                        collaborative_model = None
-                        
-                except Exception as e:
-                    print(f"⚠️ Warning: Could not create collaborative filtering model: {e}")
+                # Use SVD for dimensionality reduction
+                if user_item_matrix.shape[0] > 10 and user_item_matrix.shape[1] > 10:
+                    collaborative_model = TruncatedSVD(n_components=20, random_state=42)
+                    collaborative_model.fit(user_item_matrix)
+                    print("✅ Collaborative filtering model created successfully!")
+                else:
+                    print("⚠️ Dataset too small for collaborative filtering")
                     collaborative_model = None
-                    user_item_matrix = None
-                
-                # Save models for next startup
-                print("💾 Saving models for future startups...")
-                model_data = {
-                    'content_model': content_model,
-                    'vectorizer': vectorizer,
-                    'collaborative_model': collaborative_model,
-                    'user_item_matrix': user_item_matrix
-                }
-                
-                with open(MODELS_PATH, 'wb') as f:
-                    pickle.dump(model_data, f)
-                
-                with open(FEATURES_PATH, 'wb') as f:
-                    pickle.dump(book_features, f)
-                
-                print("✅ Models saved successfully!")
+                    
+            except Exception as e:
+                print(f"⚠️ Warning: Could not create collaborative filtering model: {e}")
+                collaborative_model = None
+                user_item_matrix = None
             
-            models_loaded = True
-            models_loading = False
+            # Save models for next startup
+            print("💾 Saving models for future startups...")
+            model_data = {
+                'content_model': content_model,
+                'vectorizer': vectorizer,
+                'collaborative_model': collaborative_model,
+                'user_item_matrix': user_item_matrix
+            }
             
-            total_time = time.time() - start_time
-            print(f"🎉 STARTUP LOADING: Complete in {total_time:.2f}s!")
-            print(f"📊 Ready with {len(data)} books and trained models!")
+            with open(MODELS_PATH, 'wb') as f:
+                pickle.dump(model_data, f)
             
-            return True
+            with open(FEATURES_PATH, 'wb') as f:
+                pickle.dump(book_features, f)
             
-        except Exception as e:
-            print(f"❌ STARTUP LOADING ERROR: {e}")
-            import traceback
-            traceback.print_exc()
-            models_loading = False
-            return False
+            print("✅ Models saved successfully!")
+        
+        models_loaded = True
+        
+        total_time = time.time() - start_time
+        print(f"🎉 SYNCHRONOUS LOADING: Complete in {total_time:.2f}s!")
+        print(f"📊 Ready with {len(data)} books and trained models!")
+        
+        return True
+        
+    except Exception as e:
+        print(f"❌ SYNCHRONOUS LOADING ERROR: {e}")
+        import traceback
+        traceback.print_exc()
+        models_loaded = False
+        return False
 
 def init_db():
     """Initialize SQLite database for analytics, user data, and authentication"""
@@ -452,28 +429,14 @@ def models_ready_required(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
         if not models_loaded:
-            if models_loading:
-                return jsonify({
-                    'loading': True,
-                    'message': 'Models are loading, please try again in a moment',
-                    'status': 'loading'
-                }), 202  # 202 Accepted - still processing
-            else:
-                return jsonify({
-                    'error': 'Models failed to load',
-                    'status': 'error'
-                }), 503  # 503 Service Unavailable
+            return jsonify({
+                'error': 'Models are not loaded',
+                'status': 'error'
+            }), 503  # 503 Service Unavailable
         
         return f(*args, **kwargs)
     
     return decorated_function
-
-# Initialize models in background thread at startup
-def start_model_loading():
-    """Start model loading in background thread"""
-    print("🚀 Starting background model loading...")
-    loading_thread = threading.Thread(target=load_models_at_startup, daemon=False)
-    loading_thread.start()
 
 # Existing utility functions (ALL PRESERVED)
 def extract_key_words(text, genre):
@@ -564,7 +527,7 @@ def get_book_image_url(book_row):
     return f"https://via.placeholder.com/200x300/4a5568/ffffff?text={title}"
 
 def recommend(choice, method='content', user_id=None, limit=8):
-    """Enhanced recommendation algorithm with multiple methods - NO LAZY LOADING"""
+    """Enhanced recommendation algorithm with multiple methods - NO THREADING"""
     global data, content_model, book_features, collaborative_model, user_item_matrix
     
     if not choice or not choice.strip():
@@ -1129,9 +1092,9 @@ def health():
     """Enhanced health check endpoint"""
     try:
         return jsonify({
-            'status': 'healthy' if models_loaded else ('loading' if models_loading else 'ready'),
+            'status': 'healthy' if models_loaded else 'error',
             'model_loaded': models_loaded,
-            'data_loading': models_loading,
+            'data_loading': False,  # No more loading states with sync loading
             'timestamp': get_current_timestamp(),
             'data_size': len(data) if data is not None else 0,
             'features': {
@@ -1153,7 +1116,7 @@ def health():
 @cross_origin()
 @models_ready_required
 def api_recommend():
-    """Enhanced book recommendations with multiple methods - NO LAZY LOADING"""
+    """Enhanced book recommendations with multiple methods - SYNCHRONOUS"""
     query = request.args.get('q', '')
     method = request.args.get('method', 'content')  # content, collaborative, hybrid
     limit = min(int(request.args.get('limit', 8)), 20)  # Max 20 recommendations
@@ -1696,17 +1659,21 @@ def search_suggestions():
         print(f"❌ Error getting suggestions: {e}")
         return jsonify({'suggestions': []})
 
-# Initialize database and start model loading
+# Initialize database and load models SYNCHRONOUSLY
 init_db()
 
-# Start model loading immediately when the module is imported
-print("🚀 Starting BookQuest backend with STARTUP MODEL LOADING...")
-start_model_loading()
+# CRITICAL: Load models synchronously before starting the server
+print("🚀 Starting BookQuest backend with SYNCHRONOUS MODEL LOADING...")
+load_models_sync()
 
 # Production deployment configuration
 if __name__ == "__main__":
     port = int(os.environ.get('PORT', 5000))
-    print("🚀 BookQuest backend ready!")
-    print("📊 Features: ML Recommendations, User Auth, Analytics, Google Books API")
-    print("✅ Models will be loaded at startup - no more timeouts!")
+    if models_loaded:
+        print("✅ Models loaded successfully - Flask app ready to serve!")
+        print(f"📊 Features: ML Recommendations ({len(data)} books), User Auth, Analytics, Google Books API")
+        print("🎯 No more threading issues - all operations are synchronous!")
+    else:
+        print("❌ Models failed to load - Flask app running in limited mode")
+    
     app.run(debug=False, host='0.0.0.0', port=port, threaded=True)
