@@ -14,7 +14,7 @@
 [![License](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Vercel](https://img.shields.io/badge/Deployed-Vercel-black.svg)](https://vercel.com)
 
-[Live Demo](https://your-bookquest-app.vercel.app) • [API Documentation](#api-documentation) • [Contributing](#contributing)
+[Live Demo](https://book-quest-lemon.vercel.app/) • [API Documentation](#api-documentation) • [Contributing](#contributing)
 
 </div>
 
@@ -35,7 +35,7 @@ BookQuest is an intelligent book recommendation system that leverages advanced m
 
 ## 🚀 Live Demo
 
-Experience BookQuest live: **[https://your-bookquest-app.vercel.app](https://your-bookquest-app.vercel.app)**
+Experience BookQuest live: **[https://book-quest-lemon.vercel.app/](https://book-quest-lemon.vercel.app/)**
 
 
 
