@@ -62,7 +62,6 @@ export default function Home() {
   const [userPreferences, setUserPreferences] = useState<{[key: string]: number}>({})
   
   const [showFilters, setShowFilters] = useState(false)
-  const [showAdvanced, setShowAdvanced] = useState(false)
 
   const suggestions = ['Harry Potter', 'The Alchemist', '1984', 'To Kill a Mockingbird', 'Pride and Prejudice', 'The Great Gatsby']
 
@@ -71,17 +70,57 @@ export default function Home() {
     return Array.isArray(favorites) ? favorites : []
   }
 
-  // Safe number rendering helper
-const safeRenderNumber = (value: any): string => {
-  if (typeof value === 'number') return String(value)
-  if (Array.isArray(value)) return String(value.length)
-  if (typeof value === 'object' && value !== null) {
-    if (value.count !== undefined) return String(value.count)
-    if (value.length !== undefined) return String(value.length)
-    return String(Object.keys(value).length)
+  // ✅ BULLETPROOF Safe rendering helper - FIXED VERSION
+  const safeRenderValue = (value: any): string => {
+    try {
+      // Handle null/undefined
+      if (value === null || value === undefined) return '0'
+      
+      // Handle numbers
+      if (typeof value === 'number') return String(value)
+      
+      // Handle strings
+      if (typeof value === 'string') return value
+      
+      // Handle arrays
+      if (Array.isArray(value)) return String(value.length)
+      
+      // Handle objects - This is the KEY FIX for your backend responses
+      if (typeof value === 'object' && value !== null) {
+        // Check for common backend response patterns
+        if ('count' in value && typeof value.count === 'number') return String(value.count)
+        if ('total' in value && typeof value.total === 'number') return String(value.total)
+        if ('length' in value && typeof value.length === 'number') return String(value.length)
+        if ('size' in value && typeof value.size === 'number') return String(value.size)
+        if ('value' in value && typeof value.value === 'number') return String(value.value)
+        
+        // For your specific backend that returns {count, name, popularity}
+        if ('name' in value && 'count' in value) return String(value.count)
+        if ('name' in value && 'popularity' in value) return String(value.popularity)
+        
+        // Fallback to object key count
+        return String(Object.keys(value).length)
+      }
+      
+      return '0'
+    } catch (error) {
+      console.error('Error rendering value:', error, value)
+      return '0'
+    }
   }
-  return '0'
-}
+
+  // ✅ SAFE debug function - won't crash if objects are passed
+  const debugApiResponse = (label: string, data: any) => {
+    if (process.env.NODE_ENV === 'development') {
+      console.log(`🔍 ${label}:`, {
+        type: typeof data,
+        isArray: Array.isArray(data),
+        value: data,
+        rendered: safeRenderValue(data)
+      })
+    }
+  }
+
   // Fetch available genres and authors - FIXED
   const fetchGenresAndAuthors = async () => {
     try {
@@ -92,15 +131,43 @@ const safeRenderNumber = (value: any): string => {
       
       if (genresRes.ok) {
         const genresData = await genresRes.json()
-        setAvailableGenres(Array.isArray(genresData.genres) ? genresData.genres : [])
+        debugApiResponse('Genres API', genresData)
+        
+        // ✅ SAFE extraction of genres
+        let genres: string[] = []
+        if (genresData && typeof genresData === 'object') {
+          if (Array.isArray(genresData.genres)) {
+            genres = genresData.genres
+          } else if (Array.isArray(genresData)) {
+            genres = genresData
+          } else if (genresData.data && Array.isArray(genresData.data)) {
+            genres = genresData.data
+          }
+        }
+        setAvailableGenres(genres)
       }
       
       if (authorsRes.ok) {
         const authorsData = await authorsRes.json()
-        setAvailableAuthors(Array.isArray(authorsData.authors) ? authorsData.authors : [])
+        debugApiResponse('Authors API', authorsData)
+        
+        // ✅ SAFE extraction of authors
+        let authors: string[] = []
+        if (authorsData && typeof authorsData === 'object') {
+          if (Array.isArray(authorsData.authors)) {
+            authors = authorsData.authors
+          } else if (Array.isArray(authorsData)) {
+            authors = authorsData
+          } else if (authorsData.data && Array.isArray(authorsData.data)) {
+            authors = authorsData.data
+          }
+        }
+        setAvailableAuthors(authors)
       }
     } catch (error) {
       console.error('Error fetching genres/authors:', error)
+      setAvailableGenres([])
+      setAvailableAuthors([])
     }
   }
 
@@ -114,32 +181,35 @@ const safeRenderNumber = (value: any): string => {
 
     console.log('🔄 Component mounted, initializing...')
     
-    const recent = localStorage.getItem('recentSearches')
-    if (recent) {
-      try {
-        const parsedRecent = JSON.parse(recent)
-        setSearchHistory(Array.isArray(parsedRecent) ? parsedRecent : [])
-      } catch {
-        setSearchHistory([])
+    // ✅ SAFE localStorage access
+    if (typeof window !== 'undefined') {
+      const recent = localStorage.getItem('recentSearches')
+      if (recent) {
+        try {
+          const parsedRecent = JSON.parse(recent)
+          setSearchHistory(Array.isArray(parsedRecent) ? parsedRecent : [])
+        } catch {
+          setSearchHistory([])
+        }
       }
-    }
 
-    // Load user preferences
-    const preferences = localStorage.getItem('userPreferences')
-    if (preferences) {
-      try {
-        const parsedPreferences = JSON.parse(preferences)
-        setUserPreferences(parsedPreferences || {})
-      } catch {
-        setUserPreferences({})
+      // Load user preferences
+      const preferences = localStorage.getItem('userPreferences')
+      if (preferences) {
+        try {
+          const parsedPreferences = JSON.parse(preferences)
+          setUserPreferences(parsedPreferences || {})
+        } catch {
+          setUserPreferences({})
+        }
       }
-    }
 
-    const urlParams = new URLSearchParams(window.location.search)
-    const searchParam = urlParams.get('search')
-    if (searchParam) {
-      setQuery(searchParam)
-      setTimeout(() => performSearch(searchParam), 100)
+      const urlParams = new URLSearchParams(window.location.search)
+      const searchParam = urlParams.get('search')
+      if (searchParam) {
+        setQuery(searchParam)
+        setTimeout(() => performSearch(searchParam), 100)
+      }
     }
 
     fetchFavorites()
@@ -155,6 +225,7 @@ const safeRenderNumber = (value: any): string => {
       if (response.ok) {
         const data = await response.json()
         console.log('✅ Backend health check passed:', data)
+        debugApiResponse('Backend Health', data)
       } else {
         console.error('❌ Backend health check failed:', response.status)
       }
@@ -183,9 +254,13 @@ const safeRenderNumber = (value: any): string => {
       if (response.ok) {
         const data = await response.json()
         console.log('✅ Favorites response:', data)
+        debugApiResponse('Favorites API', data)
         
+        // ✅ SAFE favorites handling
         if (Array.isArray(data)) {
           setFavorites(data)
+        } else if (data && typeof data === 'object' && Array.isArray(data.favorites)) {
+          setFavorites(data.favorites)
         } else {
           console.warn('⚠️ Favorites API returned non-array:', data)
           setFavorites([])
@@ -267,10 +342,21 @@ const safeRenderNumber = (value: any): string => {
       
       const data = await response.json()
       console.log('✅ Raw API response:', data)
+      debugApiResponse('Search API', data)
       
-      const recommendations = data.recommendations || []
+      // ✅ SAFE extraction of recommendations
+      let recommendations: Book[] = []
+      if (data && typeof data === 'object') {
+        if (Array.isArray(data.recommendations)) {
+          recommendations = data.recommendations
+        } else if (Array.isArray(data)) {
+          recommendations = data
+        } else if (data.data && Array.isArray(data.data)) {
+          recommendations = data.data
+        }
+      }
       
-      if (Array.isArray(recommendations)) {
+      if (recommendations.length > 0) {
         console.log('🔍 Applying filters...')
         
         // Apply filters
@@ -296,8 +382,9 @@ const safeRenderNumber = (value: any): string => {
         setBooks(filteredBooks)
         
       } else {
-        console.error('❌ Invalid response format:', data)
-        setError('Invalid response format from server')
+        console.error('❌ No recommendations found:', data)
+        setError('No books found for your search.')
+        setBooks([])
       }
     } catch (err: any) {
       console.error('❌ Fetch error:', err)
@@ -454,6 +541,8 @@ const safeRenderNumber = (value: any): string => {
   }
 
   const exportToPDF = () => {
+    if (typeof window === 'undefined') return // SSR guard
+    
     const content = books.map((book, i) => 
       `${i+1}. ${book.title} by ${book.author} (Rating: ${book.rating}) [${book.method || 'content'}]`
     ).join('\n')
@@ -582,55 +671,54 @@ const safeRenderNumber = (value: any): string => {
                 </div>
               </div>
 
-              {/* Stats Bar -*/}
-<div className="grid grid-cols-2 sm:grid-cols-4 gap-4 sm:gap-6 mb-12 max-w-4xl mx-auto px-4">
-  <div className="text-center">
-    <div className="relative">
-      <div className="absolute inset-0 bg-gradient-to-r from-indigo-100 to-blue-100 dark:from-indigo-900/30 dark:to-blue-900/30 rounded-2xl blur opacity-40"></div>
-      <div className="relative bg-white/90 dark:bg-slate-800/90 backdrop-blur-sm rounded-2xl p-4 sm:p-6 shadow-lg border border-slate-200/50 dark:border-slate-700/50">
-        <div className="text-2xl sm:text-3xl lg:text-4xl font-black text-transparent bg-clip-text bg-gradient-to-r from-indigo-600 to-blue-600 mb-2">270K+</div>
-        <div className="text-xs sm:text-sm text-slate-600 dark:text-slate-400 font-semibold uppercase tracking-wider">Books</div>
-      </div>
-    </div>
-  </div>
-  
-  <div className="text-center">
-    <div className="relative">
-      <div className="absolute inset-0 bg-gradient-to-r from-purple-100 to-pink-100 dark:from-purple-900/30 dark:to-pink-900/30 rounded-2xl blur opacity-40"></div>
-      <div className="relative bg-white/90 dark:bg-slate-800/90 backdrop-blur-sm rounded-2xl p-4 sm:p-6 shadow-lg border border-slate-200/50 dark:border-slate-700/50">
-        <div className="text-2xl sm:text-3xl lg:text-4xl font-black text-transparent bg-clip-text bg-gradient-to-r from-purple-600 to-pink-600 mb-2">
-          {safeRenderNumber(availableGenres)}+
-        </div>
-        <div className="text-xs sm:text-sm text-slate-600 dark:text-slate-400 font-semibold uppercase tracking-wider">Genres</div>
-      </div>
-    </div>
-  </div>
-  
-  <div className="text-center">
-    <div className="relative">
-      <div className="absolute inset-0 bg-gradient-to-r from-emerald-100 to-teal-100 dark:from-emerald-900/30 dark:to-teal-900/30 rounded-2xl blur opacity-40"></div>
-      <div className="relative bg-white/90 dark:bg-slate-800/90 backdrop-blur-sm rounded-2xl p-4 sm:p-6 shadow-lg border border-slate-200/50 dark:border-slate-700/50">
-        <div className="text-2xl sm:text-3xl lg:text-4xl font-black text-transparent bg-clip-text bg-gradient-to-r from-emerald-600 to-teal-600 mb-2">
-          {safeRenderNumber(userPreferences)}
-        </div>
-        <div className="text-xs sm:text-sm text-slate-600 dark:text-slate-400 font-semibold uppercase tracking-wider">Rated</div>
-      </div>
-    </div>
-  </div>
-  
-  <div className="text-center">
-    <div className="relative">
-      <div className="absolute inset-0 bg-gradient-to-r from-rose-100 to-orange-100 dark:from-rose-900/30 dark:to-orange-900/30 rounded-2xl blur opacity-40"></div>
-      <div className="relative bg-white/90 dark:bg-slate-800/90 backdrop-blur-sm rounded-2xl p-4 sm:p-6 shadow-lg border border-slate-200/50 dark:border-slate-700/50">
-        <div className="text-2xl sm:text-3xl lg:text-4xl font-black text-transparent bg-clip-text bg-gradient-to-r from-rose-600 to-orange-600 mb-2">
-          {safeRenderNumber(safeFavorites)}
-        </div>
-        <div className="text-xs sm:text-sm text-slate-600 dark:text-slate-400 font-semibold uppercase tracking-wider">Favorites</div>
-      </div>
-    </div>
-  </div>
-</div>
-
+              {/* ✅ BULLETPROOF Stats Bar - This will never crash */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 sm:gap-6 mb-12 max-w-4xl mx-auto px-4">
+                <div className="text-center">
+                  <div className="relative">
+                    <div className="absolute inset-0 bg-gradient-to-r from-indigo-100 to-blue-100 dark:from-indigo-900/30 dark:to-blue-900/30 rounded-2xl blur opacity-40"></div>
+                    <div className="relative bg-white/90 dark:bg-slate-800/90 backdrop-blur-sm rounded-2xl p-4 sm:p-6 shadow-lg border border-slate-200/50 dark:border-slate-700/50">
+                      <div className="text-2xl sm:text-3xl lg:text-4xl font-black text-transparent bg-clip-text bg-gradient-to-r from-indigo-600 to-blue-600 mb-2">270K+</div>
+                      <div className="text-xs sm:text-sm text-slate-600 dark:text-slate-400 font-semibold uppercase tracking-wider">Books</div>
+                    </div>
+                  </div>
+                </div>
+                
+                <div className="text-center">
+                  <div className="relative">
+                    <div className="absolute inset-0 bg-gradient-to-r from-purple-100 to-pink-100 dark:from-purple-900/30 dark:to-pink-900/30 rounded-2xl blur opacity-40"></div>
+                    <div className="relative bg-white/90 dark:bg-slate-800/90 backdrop-blur-sm rounded-2xl p-4 sm:p-6 shadow-lg border border-slate-200/50 dark:border-slate-700/50">
+                      <div className="text-2xl sm:text-3xl lg:text-4xl font-black text-transparent bg-clip-text bg-gradient-to-r from-purple-600 to-pink-600 mb-2">
+                        {safeRenderValue(availableGenres)}+
+                      </div>
+                      <div className="text-xs sm:text-sm text-slate-600 dark:text-slate-400 font-semibold uppercase tracking-wider">Genres</div>
+                    </div>
+                  </div>
+                </div>
+                
+                <div className="text-center">
+                  <div className="relative">
+                    <div className="absolute inset-0 bg-gradient-to-r from-emerald-100 to-teal-100 dark:from-emerald-900/30 dark:to-teal-900/30 rounded-2xl blur opacity-40"></div>
+                    <div className="relative bg-white/90 dark:bg-slate-800/90 backdrop-blur-sm rounded-2xl p-4 sm:p-6 shadow-lg border border-slate-200/50 dark:border-slate-700/50">
+                      <div className="text-2xl sm:text-3xl lg:text-4xl font-black text-transparent bg-clip-text bg-gradient-to-r from-emerald-600 to-teal-600 mb-2">
+                        {safeRenderValue(userPreferences)}
+                      </div>
+                      <div className="text-xs sm:text-sm text-slate-600 dark:text-slate-400 font-semibold uppercase tracking-wider">Rated</div>
+                    </div>
+                  </div>
+                </div>
+                
+                <div className="text-center">
+                  <div className="relative">
+                    <div className="absolute inset-0 bg-gradient-to-r from-rose-100 to-orange-100 dark:from-rose-900/30 dark:to-orange-900/30 rounded-2xl blur opacity-40"></div>
+                    <div className="relative bg-white/90 dark:bg-slate-800/90 backdrop-blur-sm rounded-2xl p-4 sm:p-6 shadow-lg border border-slate-200/50 dark:border-slate-700/50">
+                      <div className="text-2xl sm:text-3xl lg:text-4xl font-black text-transparent bg-clip-text bg-gradient-to-r from-rose-600 to-orange-600 mb-2">
+                        {safeRenderValue(safeFavorites)}
+                      </div>
+                      <div className="text-xs sm:text-sm text-slate-600 dark:text-slate-400 font-semibold uppercase tracking-wider">Favorites</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
 
               {/* Call to Action */}
               <div className="flex flex-col sm:flex-row justify-center items-center gap-4 sm:gap-6">
