@@ -33,6 +33,7 @@ interface BookDetails {
 }
 
 export default function Home() {
+  const [mounted, setMounted] = useState(false)
   const [query, setQuery] = useState('')
   const [books, setBooks] = useState<Book[]>([])
   const [loading, setLoading] = useState(false)
@@ -44,7 +45,6 @@ export default function Home() {
   const [favorites, setFavorites] = useState<Book[]>([])
   const [userRating, setUserRating] = useState(0)
   
- 
   const API_BASE_URL = 'https://bookquest-f7t2.onrender.com'
   
   // Enhanced filter state with genre support
@@ -70,6 +70,14 @@ export default function Home() {
   const getSafeFavorites = (): Book[] => {
     return Array.isArray(favorites) ? favorites : []
   }
+
+  // Safe number rendering helper
+  const safeRenderNumber = (value: any): number => {
+    if (typeof value === 'number') return value
+    if (Array.isArray(value)) return value.length
+    if (typeof value === 'object' && value !== null) return Object.keys(value).length
+    return 0
+  }
    
   // Fetch available genres and authors - FIXED
   const fetchGenresAndAuthors = async () => {
@@ -93,7 +101,14 @@ export default function Home() {
     }
   }
 
+  // Handle component mounting for SSR/CSR compatibility
   useEffect(() => {
+    setMounted(true)
+  }, [])
+
+  useEffect(() => {
+    if (!mounted) return
+
     console.log('🔄 Component mounted, initializing...')
     
     const recent = localStorage.getItem('recentSearches')
@@ -127,7 +142,7 @@ export default function Home() {
     fetchFavorites()
     fetchGenresAndAuthors()
     testBackendConnection()
-  }, [])
+  }, [mounted])
 
   // Test backend connection - FIXED
   const testBackendConnection = async () => {
@@ -166,7 +181,6 @@ export default function Home() {
         const data = await response.json()
         console.log('✅ Favorites response:', data)
         
-        // Ensure data is always an array
         if (Array.isArray(data)) {
           setFavorites(data)
         } else {
@@ -174,7 +188,6 @@ export default function Home() {
           setFavorites([])
         }
       } else if (response.status === 401) {
-        // User not authenticated - this is okay
         console.log('ℹ️ User not authenticated, skipping favorites')
         setFavorites([])
       } else {
@@ -462,6 +475,15 @@ export default function Home() {
 
   const safeFavorites = getSafeFavorites()
 
+  // Show loading until component is mounted (SSR protection)
+  if (!mounted) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-indigo-50 to-purple-50">
+        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600"></div>
+      </div>
+    )
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-indigo-50 dark:from-slate-900 dark:to-slate-800">
       
@@ -557,7 +579,7 @@ export default function Home() {
                 </div>
               </div>
 
-              {/* Enhanced Stats Bar */}
+              {/* Enhanced Stats Bar - FIXED to prevent React Error #31 */}
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 sm:gap-6 mb-12 max-w-4xl mx-auto px-4">
                 <div className="text-center">
                   <div className="relative">
@@ -573,7 +595,9 @@ export default function Home() {
                   <div className="relative">
                     <div className="absolute inset-0 bg-gradient-to-r from-purple-100 to-pink-100 dark:from-purple-900/30 dark:to-pink-900/30 rounded-2xl blur opacity-40"></div>
                     <div className="relative bg-white/90 dark:bg-slate-800/90 backdrop-blur-sm rounded-2xl p-4 sm:p-6 shadow-lg border border-slate-200/50 dark:border-slate-700/50">
-                      <div className="text-2xl sm:text-3xl lg:text-4xl font-black text-transparent bg-clip-text bg-gradient-to-r from-purple-600 to-pink-600 mb-2">{availableGenres.length}+</div>
+                      <div className="text-2xl sm:text-3xl lg:text-4xl font-black text-transparent bg-clip-text bg-gradient-to-r from-purple-600 to-pink-600 mb-2">
+                        {safeRenderNumber(availableGenres)}+
+                      </div>
                       <div className="text-xs sm:text-sm text-slate-600 dark:text-slate-400 font-semibold uppercase tracking-wider">Genres</div>
                     </div>
                   </div>
@@ -583,7 +607,9 @@ export default function Home() {
                   <div className="relative">
                     <div className="absolute inset-0 bg-gradient-to-r from-emerald-100 to-teal-100 dark:from-emerald-900/30 dark:to-teal-900/30 rounded-2xl blur opacity-40"></div>
                     <div className="relative bg-white/90 dark:bg-slate-800/90 backdrop-blur-sm rounded-2xl p-4 sm:p-6 shadow-lg border border-slate-200/50 dark:border-slate-700/50">
-                      <div className="text-2xl sm:text-3xl lg:text-4xl font-black text-transparent bg-clip-text bg-gradient-to-r from-emerald-600 to-teal-600 mb-2">{Object.keys(userPreferences).length}</div>
+                      <div className="text-2xl sm:text-3xl lg:text-4xl font-black text-transparent bg-clip-text bg-gradient-to-r from-emerald-600 to-teal-600 mb-2">
+                        {safeRenderNumber(userPreferences)}
+                      </div>
                       <div className="text-xs sm:text-sm text-slate-600 dark:text-slate-400 font-semibold uppercase tracking-wider">Rated</div>
                     </div>
                   </div>
@@ -593,7 +619,9 @@ export default function Home() {
                   <div className="relative">
                     <div className="absolute inset-0 bg-gradient-to-r from-rose-100 to-orange-100 dark:from-rose-900/30 dark:to-orange-900/30 rounded-2xl blur opacity-40"></div>
                     <div className="relative bg-white/90 dark:bg-slate-800/90 backdrop-blur-sm rounded-2xl p-4 sm:p-6 shadow-lg border border-slate-200/50 dark:border-slate-700/50">
-                      <div className="text-2xl sm:text-3xl lg:text-4xl font-black text-transparent bg-clip-text bg-gradient-to-r from-rose-600 to-orange-600 mb-2">{safeFavorites.length}</div>
+                      <div className="text-2xl sm:text-3xl lg:text-4xl font-black text-transparent bg-clip-text bg-gradient-to-r from-rose-600 to-orange-600 mb-2">
+                        {safeRenderNumber(safeFavorites)}
+                      </div>
                       <div className="text-xs sm:text-sm text-slate-600 dark:text-slate-400 font-semibold uppercase tracking-wider">Favorites</div>
                     </div>
                   </div>
