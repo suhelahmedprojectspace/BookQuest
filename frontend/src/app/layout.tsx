@@ -50,7 +50,7 @@ export default function RootLayout({
                   ></div>
                   <div className="w-4 h-4 bg-indigo-600 rounded-full animate-bounce"></div>
                 </div>
-                <p className="mt-4 text-slate-600 dark:text-slate-300">Loading...</p>
+                <p className="mt-4 text-slate-600 dark:text-slate-300">Loading BookQuest...</p>
               </div>
             </div>
           }>

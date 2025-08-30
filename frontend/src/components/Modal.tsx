@@ -67,10 +67,19 @@ export default function Modal({
   const [imageError, setImageError] = useState(false)
   const [expanded, setExpanded] = useState(false)
   const [showChart, setShowChart] = useState(false)
+  const [mounted, setMounted] = useState(false) // ← SSR PROTECTION
+  
   const isFavorite = favorites.some(fav => fav.title === book.title)
 
-  // Close modal on Escape key press
+  // ← SSR PROTECTION - Wait for client-side mount
   useEffect(() => {
+    setMounted(true)
+  }, [])
+
+  // ← SSR GUARD - Close modal on Escape key press
+  useEffect(() => {
+    if (typeof window === 'undefined') return // SSR guard
+    
     const handleEscKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') onClose()
     }
@@ -79,13 +88,20 @@ export default function Modal({
     return () => document.removeEventListener('keydown', handleEscKey)
   }, [onClose])
 
-  // Prevent body scrolling when modal is open
+  // ← SSR GUARD - Prevent body scrolling when modal is open
   useEffect(() => {
+    if (typeof window === 'undefined') return // SSR guard
+    
     document.body.style.overflow = 'hidden'
     return () => {
       document.body.style.overflow = 'unset'
     }
   }, [])
+
+  // ← SSR PROTECTION - Don't render until mounted
+  if (!mounted) {
+    return null
+  }
 
   // Generate recommendation factors if not provided
   const getRecommendationFactors = () => {

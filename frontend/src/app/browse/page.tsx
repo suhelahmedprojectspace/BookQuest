@@ -1,4 +1,5 @@
 'use client'
+
 import { useState, useEffect } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { Suspense } from 'react'
@@ -32,9 +33,10 @@ interface BookDetails {
   error?: string
 }
 
-export default function Browse() {
+function BrowseContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
+  const [mounted, setMounted] = useState(false) 
   
   const [popularBooks, setPopularBooks] = useState<Book[]>([])
   const [randomBooks, setRandomBooks] = useState<Book[]>([])
@@ -44,28 +46,35 @@ export default function Browse() {
   const [availableGenres, setAvailableGenres] = useState<string[]>([])
   const [selectedGenre, setSelectedGenre] = useState<string>('all')
   
-  // Modal states
+ 
   const [selectedBook, setSelectedBook] = useState<Book | null>(null)
   const [bookDetails, setBookDetails] = useState<BookDetails | null>(null)
   const [modalLoading, setModalLoading] = useState(false)
   const [userRating, setUserRating] = useState(0)
 
+
   useEffect(() => {
-    console.log('Browse page loading...')
-    fetchBooks()
-    fetchFavorites()
-    fetchGenres()
-    
-    // Check for book parameter in URL
-    const bookTitle = searchParams.get('book')
-    if (bookTitle && (popularBooks.length > 0 || randomBooks.length > 0)) {
-      const allBooks = [...popularBooks, ...randomBooks]
-      const book = allBooks.find(b => b.title === decodeURIComponent(bookTitle))
-      if (book) {
-        openBookDetails(book)
+    setMounted(true)
+  }, [])
+
+  useEffect(() => {
+    if (mounted) {
+      console.log('Browse page loading...')
+      fetchBooks()
+      fetchFavorites()
+      fetchGenres()
+      
+     
+      const bookTitle = searchParams?.get('book')
+      if (bookTitle && (popularBooks.length > 0 || randomBooks.length > 0)) {
+        const allBooks = [...popularBooks, ...randomBooks]
+        const book = allBooks.find(b => b.title === decodeURIComponent(bookTitle))
+        if (book) {
+          openBookDetails(book)
+        }
       }
     }
-  }, [])
+  }, [mounted])
 
   const fetchBooks = async () => {
     console.log('Fetching books from API...')
@@ -85,23 +94,17 @@ export default function Browse() {
         console.log('Popular books:', popular.length)
         console.log('Random books:', random.length)
         
-        setPopularBooks(popular)
-        setRandomBooks(random)
+        setPopularBooks(Array.isArray(popular) ? popular : [])
+        setRandomBooks(Array.isArray(random) ? random : [])
       } else {
         console.error('Failed to fetch books - Popular:', popularRes.status, 'Random:', randomRes.status)
-        
-        // Log response text for debugging
-        if (!popularRes.ok) {
-          const popularError = await popularRes.text()
-          console.error('Popular books error:', popularError)
-        }
-        if (!randomRes.ok) {
-          const randomError = await randomRes.text()
-          console.error('Random books error:', randomError)
-        }
+        setPopularBooks([])
+        setRandomBooks([])
       }
     } catch (err) {
       console.error('Error fetching books:', err)
+      setPopularBooks([])
+      setRandomBooks([])
     } finally {
       setLoading(false)
     }
@@ -112,7 +115,7 @@ export default function Browse() {
       const response = await fetch('https://bookquest-f7t2.onrender.com/api/genres')
       if (response.ok) {
         const data = await response.json()
-        setAvailableGenres(data.genres || [])
+        setAvailableGenres(Array.isArray(data.genres) ? data.genres : [])
       }
     } catch (err) {
       console.error('Error fetching genres:', err)
@@ -130,7 +133,7 @@ export default function Browse() {
       const response = await fetch(`https://bookquest-f7t2.onrender.com/api/books/genre/${encodeURIComponent(genre)}`)
       if (response.ok) {
         const books = await response.json()
-        setFilteredBooks(books)
+        setFilteredBooks(Array.isArray(books) ? books : [])
         console.log(`Fetched ${books.length} books for genre: ${genre}`)
       } else {
         console.error('Failed to fetch books by genre:', response.status)
@@ -151,10 +154,19 @@ export default function Browse() {
 
   const fetchFavorites = async () => {
     try {
-      const response = await fetch('https://bookquest-f7t2.onrender.com/api/favorites')
+      const token = typeof window !== 'undefined' ? localStorage.getItem('auth_token') : null
+      const headers: HeadersInit = {
+        'Content-Type': 'application/json'
+      }
+      
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`
+      }
+
+      const response = await fetch('https://bookquest-f7t2.onrender.com/api/favorites', { headers })
       if (response.ok) {
         const data = await response.json()
-        setFavorites(data)
+        setFavorites(Array.isArray(data) ? data : [])
       }
     } catch (err) {
       console.error('Error fetching favorites:', err)
@@ -165,9 +177,19 @@ export default function Browse() {
     const isFavorite = favorites.some(fav => fav.title === book.title)
     
     try {
+      const token = typeof window !== 'undefined' ? localStorage.getItem('auth_token') : null
+      const headers: HeadersInit = {
+        'Content-Type': 'application/json'
+      }
+      
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`
+      }
+
       if (isFavorite) {
         const response = await fetch(`https://bookquest-f7t2.onrender.com/api/favorites?title=${encodeURIComponent(book.title)}`, {
-          method: 'DELETE'
+          method: 'DELETE',
+          headers
         })
         if (response.ok) {
           setFavorites(favorites.filter(fav => fav.title !== book.title))
@@ -175,7 +197,7 @@ export default function Browse() {
       } else {
         const response = await fetch('https://bookquest-f7t2.onrender.com/api/favorites', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers,
           body: JSON.stringify(book)
         })
         if (response.ok) {
@@ -220,15 +242,33 @@ export default function Browse() {
 
   const rateBook = async (book: Book, rating: number) => {
     try {
+      const token = typeof window !== 'undefined' ? localStorage.getItem('auth_token') : null
+      const headers: HeadersInit = {
+        'Content-Type': 'application/json'
+      }
+      
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`
+      }
+
       await fetch('https://bookquest-f7t2.onrender.com/api/rate', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers,
         body: JSON.stringify({ title: book.title, rating })
       })
       setUserRating(rating)
     } catch (err) {
       console.error('Error rating book:', err)
     }
+  }
+
+
+  if (!mounted) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-indigo-50 dark:from-slate-900 dark:to-slate-800 flex items-center justify-center">
+        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-indigo-600"></div>
+      </div>
+    )
   }
 
   if (loading) {
@@ -391,7 +431,7 @@ export default function Browse() {
           </section>
         )}
         
-        {/* Random Discoveries Section */}
+     
         {selectedGenre === 'all' && (
           <section>
             <div className="flex flex-col md:flex-row items-start md:items-center justify-between mb-8">
@@ -473,5 +513,17 @@ export default function Browse() {
         }
       `}</style>
     </div>
+  )
+}
+
+export default function Browse() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-indigo-50 dark:from-slate-900 dark:to-slate-800 flex items-center justify-center">
+        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-indigo-600"></div>
+      </div>
+    }>
+      <BrowseContent />
+    </Suspense>
   )
 }

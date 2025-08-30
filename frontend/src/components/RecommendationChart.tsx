@@ -1,4 +1,6 @@
-import React from 'react'
+'use client';
+
+import React, { useState, useEffect } from 'react'
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts'
 
 interface DataPoint {
@@ -12,6 +14,27 @@ interface RecommendationChartProps {
 }
 
 export default function RecommendationChart({ data }: RecommendationChartProps) {
+  const [mounted, setMounted] = useState(false)
+
+  // SSR Protection - Charts don't work on server
+  useEffect(() => {
+    setMounted(true)
+  }, [])
+
+  // Show loading until mounted
+  if (!mounted) {
+    return (
+      <div className="w-full h-64 bg-gray-800/30 p-4 rounded-xl border border-gray-700">
+        <h4 className="text-lg font-semibold text-white mb-4 text-center">
+          Recommendation Factors
+        </h4>
+        <div className="w-full h-48 bg-gray-700/50 rounded-lg animate-pulse flex items-center justify-center">
+          <div className="text-gray-400">Loading chart...</div>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="w-full h-64 bg-gray-800/30 p-4 rounded-xl border border-gray-700">
       <h4 className="text-lg font-semibold text-white mb-4 text-center">

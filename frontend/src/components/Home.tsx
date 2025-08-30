@@ -72,13 +72,16 @@ export default function Home() {
   }
 
   // Safe number rendering helper
-  const safeRenderNumber = (value: any): number => {
-    if (typeof value === 'number') return value
-    if (Array.isArray(value)) return value.length
-    if (typeof value === 'object' && value !== null) return Object.keys(value).length
-    return 0
+const safeRenderNumber = (value: any): string => {
+  if (typeof value === 'number') return String(value)
+  if (Array.isArray(value)) return String(value.length)
+  if (typeof value === 'object' && value !== null) {
+    if (value.count !== undefined) return String(value.count)
+    if (value.length !== undefined) return String(value.length)
+    return String(Object.keys(value).length)
   }
-   
+  return '0'
+}
   // Fetch available genres and authors - FIXED
   const fetchGenresAndAuthors = async () => {
     try {
@@ -579,54 +582,55 @@ export default function Home() {
                 </div>
               </div>
 
-              {/* Enhanced Stats Bar - FIXED to prevent React Error #31 */}
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 sm:gap-6 mb-12 max-w-4xl mx-auto px-4">
-                <div className="text-center">
-                  <div className="relative">
-                    <div className="absolute inset-0 bg-gradient-to-r from-indigo-100 to-blue-100 dark:from-indigo-900/30 dark:to-blue-900/30 rounded-2xl blur opacity-40"></div>
-                    <div className="relative bg-white/90 dark:bg-slate-800/90 backdrop-blur-sm rounded-2xl p-4 sm:p-6 shadow-lg border border-slate-200/50 dark:border-slate-700/50">
-                      <div className="text-2xl sm:text-3xl lg:text-4xl font-black text-transparent bg-clip-text bg-gradient-to-r from-indigo-600 to-blue-600 mb-2">270K+</div>
-                      <div className="text-xs sm:text-sm text-slate-600 dark:text-slate-400 font-semibold uppercase tracking-wider">Books</div>
-                    </div>
-                  </div>
-                </div>
-                
-                <div className="text-center">
-                  <div className="relative">
-                    <div className="absolute inset-0 bg-gradient-to-r from-purple-100 to-pink-100 dark:from-purple-900/30 dark:to-pink-900/30 rounded-2xl blur opacity-40"></div>
-                    <div className="relative bg-white/90 dark:bg-slate-800/90 backdrop-blur-sm rounded-2xl p-4 sm:p-6 shadow-lg border border-slate-200/50 dark:border-slate-700/50">
-                      <div className="text-2xl sm:text-3xl lg:text-4xl font-black text-transparent bg-clip-text bg-gradient-to-r from-purple-600 to-pink-600 mb-2">
-                        {safeRenderNumber(availableGenres)}+
-                      </div>
-                      <div className="text-xs sm:text-sm text-slate-600 dark:text-slate-400 font-semibold uppercase tracking-wider">Genres</div>
-                    </div>
-                  </div>
-                </div>
-                
-                <div className="text-center">
-                  <div className="relative">
-                    <div className="absolute inset-0 bg-gradient-to-r from-emerald-100 to-teal-100 dark:from-emerald-900/30 dark:to-teal-900/30 rounded-2xl blur opacity-40"></div>
-                    <div className="relative bg-white/90 dark:bg-slate-800/90 backdrop-blur-sm rounded-2xl p-4 sm:p-6 shadow-lg border border-slate-200/50 dark:border-slate-700/50">
-                      <div className="text-2xl sm:text-3xl lg:text-4xl font-black text-transparent bg-clip-text bg-gradient-to-r from-emerald-600 to-teal-600 mb-2">
-                        {safeRenderNumber(userPreferences)}
-                      </div>
-                      <div className="text-xs sm:text-sm text-slate-600 dark:text-slate-400 font-semibold uppercase tracking-wider">Rated</div>
-                    </div>
-                  </div>
-                </div>
-                
-                <div className="text-center">
-                  <div className="relative">
-                    <div className="absolute inset-0 bg-gradient-to-r from-rose-100 to-orange-100 dark:from-rose-900/30 dark:to-orange-900/30 rounded-2xl blur opacity-40"></div>
-                    <div className="relative bg-white/90 dark:bg-slate-800/90 backdrop-blur-sm rounded-2xl p-4 sm:p-6 shadow-lg border border-slate-200/50 dark:border-slate-700/50">
-                      <div className="text-2xl sm:text-3xl lg:text-4xl font-black text-transparent bg-clip-text bg-gradient-to-r from-rose-600 to-orange-600 mb-2">
-                        {safeRenderNumber(safeFavorites)}
-                      </div>
-                      <div className="text-xs sm:text-sm text-slate-600 dark:text-slate-400 font-semibold uppercase tracking-wider">Favorites</div>
-                    </div>
-                  </div>
-                </div>
-              </div>
+              {/* Stats Bar -*/}
+<div className="grid grid-cols-2 sm:grid-cols-4 gap-4 sm:gap-6 mb-12 max-w-4xl mx-auto px-4">
+  <div className="text-center">
+    <div className="relative">
+      <div className="absolute inset-0 bg-gradient-to-r from-indigo-100 to-blue-100 dark:from-indigo-900/30 dark:to-blue-900/30 rounded-2xl blur opacity-40"></div>
+      <div className="relative bg-white/90 dark:bg-slate-800/90 backdrop-blur-sm rounded-2xl p-4 sm:p-6 shadow-lg border border-slate-200/50 dark:border-slate-700/50">
+        <div className="text-2xl sm:text-3xl lg:text-4xl font-black text-transparent bg-clip-text bg-gradient-to-r from-indigo-600 to-blue-600 mb-2">270K+</div>
+        <div className="text-xs sm:text-sm text-slate-600 dark:text-slate-400 font-semibold uppercase tracking-wider">Books</div>
+      </div>
+    </div>
+  </div>
+  
+  <div className="text-center">
+    <div className="relative">
+      <div className="absolute inset-0 bg-gradient-to-r from-purple-100 to-pink-100 dark:from-purple-900/30 dark:to-pink-900/30 rounded-2xl blur opacity-40"></div>
+      <div className="relative bg-white/90 dark:bg-slate-800/90 backdrop-blur-sm rounded-2xl p-4 sm:p-6 shadow-lg border border-slate-200/50 dark:border-slate-700/50">
+        <div className="text-2xl sm:text-3xl lg:text-4xl font-black text-transparent bg-clip-text bg-gradient-to-r from-purple-600 to-pink-600 mb-2">
+          {safeRenderNumber(availableGenres)}+
+        </div>
+        <div className="text-xs sm:text-sm text-slate-600 dark:text-slate-400 font-semibold uppercase tracking-wider">Genres</div>
+      </div>
+    </div>
+  </div>
+  
+  <div className="text-center">
+    <div className="relative">
+      <div className="absolute inset-0 bg-gradient-to-r from-emerald-100 to-teal-100 dark:from-emerald-900/30 dark:to-teal-900/30 rounded-2xl blur opacity-40"></div>
+      <div className="relative bg-white/90 dark:bg-slate-800/90 backdrop-blur-sm rounded-2xl p-4 sm:p-6 shadow-lg border border-slate-200/50 dark:border-slate-700/50">
+        <div className="text-2xl sm:text-3xl lg:text-4xl font-black text-transparent bg-clip-text bg-gradient-to-r from-emerald-600 to-teal-600 mb-2">
+          {safeRenderNumber(userPreferences)}
+        </div>
+        <div className="text-xs sm:text-sm text-slate-600 dark:text-slate-400 font-semibold uppercase tracking-wider">Rated</div>
+      </div>
+    </div>
+  </div>
+  
+  <div className="text-center">
+    <div className="relative">
+      <div className="absolute inset-0 bg-gradient-to-r from-rose-100 to-orange-100 dark:from-rose-900/30 dark:to-orange-900/30 rounded-2xl blur opacity-40"></div>
+      <div className="relative bg-white/90 dark:bg-slate-800/90 backdrop-blur-sm rounded-2xl p-4 sm:p-6 shadow-lg border border-slate-200/50 dark:border-slate-700/50">
+        <div className="text-2xl sm:text-3xl lg:text-4xl font-black text-transparent bg-clip-text bg-gradient-to-r from-rose-600 to-orange-600 mb-2">
+          {safeRenderNumber(safeFavorites)}
+        </div>
+        <div className="text-xs sm:text-sm text-slate-600 dark:text-slate-400 font-semibold uppercase tracking-wider">Favorites</div>
+      </div>
+    </div>
+  </div>
+</div>
+
 
               {/* Call to Action */}
               <div className="flex flex-col sm:flex-row justify-center items-center gap-4 sm:gap-6">

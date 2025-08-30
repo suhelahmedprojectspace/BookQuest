@@ -1,5 +1,6 @@
 'use client'
-import { useState } from 'react'
+
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { useAuth } from '@/contexts/AuthContext'
@@ -7,6 +8,7 @@ import { useAuth } from '@/contexts/AuthContext'
 export default function Signup() {
   const router = useRouter()
   const { signup } = useAuth()
+  const [mounted, setMounted] = useState(false) 
   const [formData, setFormData] = useState({
     username: '',
     email: '',
@@ -16,22 +18,37 @@ export default function Signup() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
-  const handleSubmit = async(e: React.FormEvent<HTMLFormElement>) => {
+  // SSR protection
+  useEffect(() => {
+    setMounted(true)
+  }, [])
+
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
     setLoading(true)
     setError('')
 
+    // Enhanced validation
     if (formData.password !== formData.confirmPassword) {
       setError('Passwords do not match')
       setLoading(false)
       return
     }
 
+    if (formData.password.length < 6) {
+      setError('Password must be at least 6 characters')
+      setLoading(false)
+      return
+    }
+
     try {
       await signup(formData.username, formData.email, formData.password)
-      router.push('/browse')
+      // Use replace instead of push to prevent back navigation to signup
+      router.replace('/browse')
     } catch (err: any) {
-      setError(err.message || 'Signup failed')
+      // Sanitize error message for display
+      const errorMessage = err?.message || 'Signup failed. Please try again.'
+      setError(errorMessage)
     } finally {
       setLoading(false)
     }
@@ -42,6 +59,15 @@ export default function Signup() {
       ...formData,
       [e.target.name]: e.target.value
     })
+  }
+
+  // Show loading until mounted (prevents hydration issues)
+  if (!mounted) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-indigo-50 dark:from-slate-900 dark:to-slate-800 flex items-center justify-center">
+        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-indigo-600"></div>
+      </div>
+    )
   }
 
   return (
@@ -79,10 +105,12 @@ export default function Signup() {
                 name="username"
                 type="text"
                 required
+                minLength={3}
+                maxLength={20}
                 value={formData.username}
                 onChange={handleChange}
                 className="w-full px-4 py-3 border border-slate-300/50 dark:border-slate-600/50 rounded-xl bg-white/50 dark:bg-slate-700/50 text-slate-900 dark:text-white placeholder-slate-500 dark:placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500 transition-all duration-300"
-                placeholder="Choose a username"
+                placeholder="Choose a username (3-20 characters)"
               />
             </div>
 
@@ -111,10 +139,11 @@ export default function Signup() {
                 name="password"
                 type="password"
                 required
+                minLength={6}
                 value={formData.password}
                 onChange={handleChange}
                 className="w-full px-4 py-3 border border-slate-300/50 dark:border-slate-600/50 rounded-xl bg-white/50 dark:bg-slate-700/50 text-slate-900 dark:text-white placeholder-slate-500 dark:placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500 transition-all duration-300"
-                placeholder="Create a password"
+                placeholder="Create a password (min. 6 characters)"
               />
             </div>
 
@@ -127,6 +156,7 @@ export default function Signup() {
                 name="confirmPassword"
                 type="password"
                 required
+                minLength={6}
                 value={formData.confirmPassword}
                 onChange={handleChange}
                 className="w-full px-4 py-3 border border-slate-300/50 dark:border-slate-600/50 rounded-xl bg-white/50 dark:bg-slate-700/50 text-slate-900 dark:text-white placeholder-slate-500 dark:placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500 transition-all duration-300"

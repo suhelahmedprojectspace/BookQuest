@@ -1,4 +1,6 @@
-import React, { useState } from 'react'
+'use client';
+
+import React, { useState, useEffect } from 'react'
 
 interface Book {
   title: string
@@ -27,8 +29,17 @@ export default function BookCard({ book, isFavorite, onToggleFavorite, onViewDet
   const [imageLoaded, setImageLoaded] = useState(false)
   const [imageError, setImageError] = useState(false)
   const [isHovered, setIsHovered] = useState(false)
+  const [mounted, setMounted] = useState(false) // ← SSR PROTECTION
+
+  // SSR Protection
+  useEffect(() => {
+    setMounted(true)
+  }, [])
 
   const shareBook = (book: Book) => {
+    // SSR Guard for browser-only APIs
+    if (typeof window === 'undefined') return
+
     const shareText = `📚 Check out "${book.title}" by ${book.author} - recommended by BookQuest!`
     const shareUrl = `${window.location.origin}/?search=${encodeURIComponent(book.title)}`
     
@@ -39,7 +50,7 @@ export default function BookCard({ book, isFavorite, onToggleFavorite, onViewDet
         url: shareUrl
       }).catch(console.error)
     } else {
-      navigator.clipboard.writeText(`${shareText}\n${shareUrl}`)
+      navigator.clipboard?.writeText(`${shareText}\n${shareUrl}`)
         .then(() => {
           const toast = document.createElement('div')
           toast.className = 'fixed top-4 right-4 bg-emerald-500 text-white px-4 py-2 rounded-lg shadow-lg z-50 transition-all duration-300'
@@ -52,6 +63,17 @@ export default function BookCard({ book, isFavorite, onToggleFavorite, onViewDet
         })
         .catch(() => alert('❌ Failed to copy link'))
     }
+  }
+
+  // Don't render until mounted (prevents hydration mismatch)
+  if (!mounted) {
+    return (
+      <div className="bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm p-5 rounded-xl border border-slate-200/70 dark:border-slate-700/50 shadow-sm animate-pulse">
+        <div className="w-full h-52 bg-slate-300 dark:bg-slate-600 rounded-lg mb-4"></div>
+        <div className="h-4 bg-slate-300 dark:bg-slate-600 rounded mb-2"></div>
+        <div className="h-3 bg-slate-300 dark:bg-slate-600 rounded w-2/3"></div>
+      </div>
+    )
   }
 
   return (
@@ -103,7 +125,7 @@ export default function BookCard({ book, isFavorite, onToggleFavorite, onViewDet
             <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
               <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
             </svg>
-            {Math.round(book.similarity * 100)}%
+            {Math.round((book.similarity || 0) * 100)}%
           </span>
         </div>
       )}

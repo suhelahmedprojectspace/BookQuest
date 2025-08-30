@@ -1,4 +1,5 @@
 'use client'
+
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import BookCard from '@/components/BookCard'
@@ -33,6 +34,7 @@ interface BookDetails {
 
 export default function Favorites() {
   const router = useRouter()
+  const [mounted, setMounted] = useState(false) // ← SSR PROTECTION
   const [favorites, setFavorites] = useState<Book[]>([])
   const [loading, setLoading] = useState(true)
   const [selectedBook, setSelectedBook] = useState<Book | null>(null)
@@ -42,12 +44,17 @@ export default function Favorites() {
   const [searchQuery, setSearchQuery] = useState('')
   const [userRating, setUserRating] = useState(0)
   const [filteredFavorites, setFilteredFavorites] = useState<Book[]>([])
-  
-  
+
+  // SSR protection
+  useEffect(() => {
+    setMounted(true)
+  }, [])
   
   useEffect(() => {
-    fetchFavorites()
-  }, [])
+    if (mounted) {
+      fetchFavorites()
+    }
+  }, [mounted])
 
   useEffect(() => {
     // Filter and sort favorites whenever favorites, searchQuery, or sortBy changes
@@ -70,11 +77,26 @@ export default function Favorites() {
 
   const fetchFavorites = async () => {
     try {
-      const response = await fetch('https://bookquest-f7t2.onrender.com/api/favorites')
-      const data = await response.json()
-      setFavorites(data)
+      const token = typeof window !== 'undefined' ? localStorage.getItem('auth_token') : null
+      const headers: HeadersInit = {
+        'Content-Type': 'application/json'
+      }
+      
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`
+      }
+
+      const response = await fetch('https://bookquest-f7t2.onrender.com/api/favorites', { headers })
+      
+      if (response.ok) {
+        const data = await response.json()
+        setFavorites(Array.isArray(data) ? data : [])
+      } else {
+        setFavorites([])
+      }
     } catch (err) {
       console.error('Error fetching favorites:', err)
+      setFavorites([])
     } finally {
       setLoading(false)
     }
@@ -82,10 +104,23 @@ export default function Favorites() {
 
   const removeFavorite = async (book: Book) => {
     try {
-      await fetch(`https://bookquest-f7t2.onrender.com/api/favorites?title=${encodeURIComponent(book.title)}`, {
-        method: 'DELETE'
+      const token = typeof window !== 'undefined' ? localStorage.getItem('auth_token') : null
+      const headers: HeadersInit = {
+        'Content-Type': 'application/json'
+      }
+      
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`
+      }
+
+      const response = await fetch(`https://bookquest-f7t2.onrender.com/api/favorites?title=${encodeURIComponent(book.title)}`, {
+        method: 'DELETE',
+        headers
       })
-      setFavorites(favorites.filter(fav => fav.title !== book.title))
+      
+      if (response.ok) {
+        setFavorites(favorites.filter(fav => fav.title !== book.title))
+      }
     } catch (err) {
       console.error('Error removing favorite:', err)
     }
@@ -116,6 +151,8 @@ export default function Favorites() {
   }
 
   const exportFavorites = () => {
+    if (typeof window === 'undefined') return // SSR guard
+    
     const content = favorites.map((book, i) => 
       `${i+1}. ${book.title} by ${book.author} (Rating: ${book.rating})`
     ).join('\n')
@@ -138,11 +175,23 @@ export default function Favorites() {
   }
 
   const clearAllFavorites = async () => {
+    if (typeof window === 'undefined') return // SSR guard
+    
     if (window.confirm('Are you sure you want to remove all favorites?')) {
       try {
+        const token = localStorage.getItem('auth_token')
+        const headers: HeadersInit = {
+          'Content-Type': 'application/json'
+        }
+        
+        if (token) {
+          headers['Authorization'] = `Bearer ${token}`
+        }
+
         for (const book of favorites) {
           await fetch(`https://bookquest-f7t2.onrender.com/api/favorites?title=${encodeURIComponent(book.title)}`, {
-            method: 'DELETE'
+            method: 'DELETE',
+            headers
           })
         }
         setFavorites([])
@@ -150,6 +199,15 @@ export default function Favorites() {
         console.error('Error clearing favorites:', err)
       }
     }
+  }
+
+  // Don't render until mounted (prevents hydration mismatch)
+  if (!mounted) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-indigo-50 dark:from-slate-900 dark:to-slate-800 flex items-center justify-center">
+        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-indigo-600"></div>
+      </div>
+    )
   }
 
   if (loading) {
@@ -167,7 +225,7 @@ export default function Favorites() {
         </div>
       </div>
     )
-  } 
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-indigo-50 dark:from-slate-900 dark:to-slate-800">
