@@ -42,7 +42,9 @@ export default function Favorites() {
   const [searchQuery, setSearchQuery] = useState('')
   const [userRating, setUserRating] = useState(0)
   const [filteredFavorites, setFilteredFavorites] = useState<Book[]>([])
-
+  
+  
+  
   useEffect(() => {
     fetchFavorites()
   }, [])
@@ -68,7 +70,7 @@ export default function Favorites() {
 
   const fetchFavorites = async () => {
     try {
-      const response = await fetch('http://localhost:5000/api/favorites')
+      const response = await fetch('https://bookquest-f7t2.onrender.com/api/favorites')
       const data = await response.json()
       setFavorites(data)
     } catch (err) {
@@ -80,7 +82,7 @@ export default function Favorites() {
 
   const removeFavorite = async (book: Book) => {
     try {
-      await fetch(`http://localhost:5000/api/favorites?title=${encodeURIComponent(book.title)}`, {
+      await fetch(`https://bookquest-f7t2.onrender.com/api/favorites?title=${encodeURIComponent(book.title)}`, {
         method: 'DELETE'
       })
       setFavorites(favorites.filter(fav => fav.title !== book.title))
@@ -95,7 +97,7 @@ export default function Favorites() {
     setBookDetails(null)
 
     try {
-      const response = await fetch(`http://localhost:5000/api/book/${encodeURIComponent(book.title)}`)
+      const response = await fetch(`https://bookquest-f7t2.onrender.com/api/book/${encodeURIComponent(book.title)}`)
       const data = await response.json()
       if (response.ok) {
         setBookDetails(data)
@@ -139,7 +141,7 @@ export default function Favorites() {
     if (window.confirm('Are you sure you want to remove all favorites?')) {
       try {
         for (const book of favorites) {
-          await fetch(`http://localhost:5000/api/favorites?title=${encodeURIComponent(book.title)}`, {
+          await fetch(`https://bookquest-f7t2.onrender.com/api/favorites?title=${encodeURIComponent(book.title)}`, {
             method: 'DELETE'
           })
         }

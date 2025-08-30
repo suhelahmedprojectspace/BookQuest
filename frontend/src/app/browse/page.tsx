@@ -71,8 +71,8 @@ export default function Browse() {
     console.log('Fetching books from API...')
     try {
       const [popularRes, randomRes] = await Promise.all([
-        fetch('http://localhost:5000/api/popular'),
-        fetch('http://localhost:5000/api/random')
+        fetch('https://bookquest-f7t2.onrender.com/api/popular'),
+        fetch('https://bookquest-f7t2.onrender.com/api/random')
       ])
       
       console.log('Popular response status:', popularRes.status)
@@ -109,7 +109,7 @@ export default function Browse() {
 
   const fetchGenres = async () => {
     try {
-      const response = await fetch('http://localhost:5000/api/genres')
+      const response = await fetch('https://bookquest-f7t2.onrender.com/api/genres')
       if (response.ok) {
         const data = await response.json()
         setAvailableGenres(data.genres || [])
@@ -127,7 +127,7 @@ export default function Browse() {
     
     try {
       setLoading(true)
-      const response = await fetch(`http://localhost:5000/api/books/genre/${encodeURIComponent(genre)}`)
+      const response = await fetch(`https://bookquest-f7t2.onrender.com/api/books/genre/${encodeURIComponent(genre)}`)
       if (response.ok) {
         const books = await response.json()
         setFilteredBooks(books)
@@ -151,7 +151,7 @@ export default function Browse() {
 
   const fetchFavorites = async () => {
     try {
-      const response = await fetch('http://localhost:5000/api/favorites')
+      const response = await fetch('https://bookquest-f7t2.onrender.com/api/favorites')
       if (response.ok) {
         const data = await response.json()
         setFavorites(data)
@@ -166,14 +166,14 @@ export default function Browse() {
     
     try {
       if (isFavorite) {
-        const response = await fetch(`http://localhost:5000/api/favorites?title=${encodeURIComponent(book.title)}`, {
+        const response = await fetch(`https://bookquest-f7t2.onrender.com/api/favorites?title=${encodeURIComponent(book.title)}`, {
           method: 'DELETE'
         })
         if (response.ok) {
           setFavorites(favorites.filter(fav => fav.title !== book.title))
         }
       } else {
-        const response = await fetch('http://localhost:5000/api/favorites', {
+        const response = await fetch('https://bookquest-f7t2.onrender.com/api/favorites', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(book)
@@ -197,7 +197,7 @@ export default function Browse() {
     router.push(`/browse?book=${encodeURIComponent(book.title)}`)
 
     try {
-      const response = await fetch(`http://localhost:5000/api/book/${encodeURIComponent(book.title)}`)
+      const response = await fetch(`https://bookquest-f7t2.onrender.com/api/book/${encodeURIComponent(book.title)}`)
       if (response.ok) {
         const data = await response.json()
         setBookDetails(data)
@@ -220,7 +220,7 @@ export default function Browse() {
 
   const rateBook = async (book: Book, rating: number) => {
     try {
-      await fetch('http://localhost:5000/api/rate', {
+      await fetch('https://bookquest-f7t2.onrender.com/api/rate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ title: book.title, rating })
