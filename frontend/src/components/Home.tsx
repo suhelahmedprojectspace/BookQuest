@@ -45,7 +45,7 @@ export default function Home() {
   const [userRating, setUserRating] = useState(0)
   
  
-  const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'https://bookquest-f7t2.onrender.com'
+  const API_BASE_URL = 'https://bookquest-f7t2.onrender.com'
   
   // Enhanced filter state with genre support
   const [filters, setFilters] = useState({

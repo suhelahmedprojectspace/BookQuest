@@ -29,15 +29,15 @@ export function useAuth() {
 }
 
 const setCookie = (name: string, value: string, days: number = 7) => {
-  if (typeof window === 'undefined') return; // SSR guard
+  if (typeof window === 'undefined') return;
   const expires = new Date();
   expires.setTime(expires.getTime() + days * 24 * 60 * 60 * 1000);
-  document.cookie = `${name}=${value};expires=${expires.toUTCString()};path=/;SameSite=Lax`;
+  document.cookie = `${name}=${value}; expires=${expires.toUTCString()}; path=/; SameSite=Lax`;
 };
 
 const getCookie = (name: string): string | null => {
-  if (typeof window === 'undefined') return null; // SSR guard
-  const nameEQ = name + '=';
+  if (typeof window === 'undefined') return null;
+  const nameEQ = `${name}=`;
   const ca = document.cookie.split(';');
   for (let i = 0; i < ca.length; i++) {
     let c = ca[i];
@@ -48,8 +48,8 @@ const getCookie = (name: string): string | null => {
 };
 
 const deleteCookie = (name: string) => {
-  if (typeof window === 'undefined') return; // SSR guard
-  document.cookie = `${name}=;expires=Thu, 01 Jan 1970 00:00:00 UTC;path=/`;
+  if (typeof window === 'undefined') return;
+  document.cookie = `${name}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/`;
 };
 
 interface AuthProviderProps {
@@ -73,7 +73,14 @@ export function AuthProvider({ children }: AuthProviderProps) {
           await verifyToken(storedToken);
         }
       } catch (error) {
-        console.error('Error initializing auth:', error);
+        console.error('Failed to initialize auth:', error);
+        // Clean up on error
+        if (typeof window !== 'undefined') {
+          localStorage.removeItem('auth_user');
+        }
+        deleteCookie('auth_token');
+        setToken(null);
+        setUser(null);
       } finally {
         setLoading(false);
       }
