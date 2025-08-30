@@ -44,6 +44,9 @@ export default function Home() {
   const [favorites, setFavorites] = useState<Book[]>([])
   const [userRating, setUserRating] = useState(0)
   
+ 
+  const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'https://bookquest-f7t2.onrender.com'
+  
   // Enhanced filter state with genre support
   const [filters, setFilters] = useState({
     minRating: 0,
@@ -68,12 +71,12 @@ export default function Home() {
     return Array.isArray(favorites) ? favorites : []
   }
    
-  // Fetch available genres and authors
+  // Fetch available genres and authors - FIXED
   const fetchGenresAndAuthors = async () => {
     try {
       const [genresRes, authorsRes] = await Promise.all([
-        fetch('http://localhost:5000/api/genres'),
-        fetch('http://localhost:5000/api/authors')
+        fetch(`${API_BASE_URL}/api/genres`),
+        fetch(`${API_BASE_URL}/api/authors`)
       ])
       
       if (genresRes.ok) {
@@ -126,10 +129,11 @@ export default function Home() {
     testBackendConnection()
   }, [])
 
+  // Test backend connection - FIXED
   const testBackendConnection = async () => {
     console.log('🧪 Testing backend connection...')
     try {
-      const response = await fetch('http://localhost:5000/api/health')
+      const response = await fetch(`${API_BASE_URL}/api/health`)
       if (response.ok) {
         const data = await response.json()
         console.log('✅ Backend health check passed:', data)
@@ -138,11 +142,11 @@ export default function Home() {
       }
     } catch (error) {
       console.error('❌ Backend connection failed:', error)
-      setError('Cannot connect to server. Make sure the backend is running on port 5000.')
+      setError('Cannot connect to server. Please check your connection.')
     }
   }
 
-  // Enhanced fetchFavorites with proper error handling
+  // Enhanced fetchFavorites with proper error handling - FIXED
   const fetchFavorites = async () => {
     console.log('❤️ Fetching favorites...')
     try {
@@ -156,7 +160,7 @@ export default function Home() {
         headers['Authorization'] = `Bearer ${token}`
       }
 
-      const response = await fetch('http://localhost:5000/api/favorites', { headers })
+      const response = await fetch(`${API_BASE_URL}/api/favorites`, { headers })
       
       if (response.ok) {
         const data = await response.json()
@@ -191,7 +195,7 @@ export default function Home() {
     }
   }
 
-  // Enhanced search function with multiple modes
+  // Enhanced search function with multiple modes - FIXED
   const performSearch = async (searchQuery: string, mode: string = searchMode) => {
     if (!searchQuery?.trim()) {
       console.log('❌ Empty search query')
@@ -208,18 +212,18 @@ export default function Home() {
       let url = ''
       let requestOptions: RequestInit = { method: 'GET' }
       
-      // Choose API endpoint based on search mode
+      // Choose API endpoint based on search mode - ALL FIXED
       switch (mode) {
         case 'genre':
-          url = `http://localhost:5000/api/recommend/genre/${encodeURIComponent(searchQuery)}`
+          url = `${API_BASE_URL}/api/recommend/genre/${encodeURIComponent(searchQuery)}`
           break
           
         case 'author':
-          url = `http://localhost:5000/api/recommend/author/${encodeURIComponent(searchQuery)}`
+          url = `${API_BASE_URL}/api/recommend/author/${encodeURIComponent(searchQuery)}`
           break
           
         case 'hybrid':
-          url = 'http://localhost:5000/api/recommend/hybrid'
+          url = `${API_BASE_URL}/api/recommend/hybrid`
           requestOptions = {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -233,7 +237,7 @@ export default function Home() {
           break
           
         default: // title search
-          url = `http://localhost:5000/api/recommend?q=${encodeURIComponent(searchQuery)}`
+          url = `${API_BASE_URL}/api/recommend?q=${encodeURIComponent(searchQuery)}`
       }
       
       console.log('📡 Making request to:', url)
@@ -281,7 +285,7 @@ export default function Home() {
       }
     } catch (err: any) {
       console.error('❌ Fetch error:', err)
-      setError('Failed to connect to server. Make sure the backend is running and accessible.')
+      setError('Failed to connect to server. Please check your connection.')
     } finally {
       setLoading(false)
     }
@@ -327,7 +331,7 @@ export default function Home() {
     }
   }
 
-  // Enhanced toggleFavorite with proper authentication and safety checks
+  // Enhanced toggleFavorite with proper authentication and safety checks - FIXED
   const toggleFavorite = async (book: Book) => {
     const safeFavorites = getSafeFavorites()
     const isFavorite = safeFavorites.some(fav => fav.title === book.title)
@@ -346,7 +350,7 @@ export default function Home() {
       }
       
       if (isFavorite) {
-        const response = await fetch(`http://localhost:5000/api/favorites?title=${encodeURIComponent(book.title)}`, {
+        const response = await fetch(`${API_BASE_URL}/api/favorites?title=${encodeURIComponent(book.title)}`, {
           method: 'DELETE',
           headers
         })
@@ -357,7 +361,7 @@ export default function Home() {
           throw new Error('Failed to remove favorite')
         }
       } else {
-        const response = await fetch('http://localhost:5000/api/favorites', {
+        const response = await fetch(`${API_BASE_URL}/api/favorites`, {
           method: 'POST',
           headers,
           body: JSON.stringify(book)
@@ -375,6 +379,7 @@ export default function Home() {
     }
   }
 
+  // Rate book function - FIXED
   const rateBook = async (book: Book, rating: number) => {
     try {
       const token = typeof window !== 'undefined' ? localStorage.getItem('auth_token') : null
@@ -384,7 +389,7 @@ export default function Home() {
         return
       }
 
-      const response = await fetch('http://localhost:5000/api/rate', {
+      const response = await fetch(`${API_BASE_URL}/api/rate`, {
         method: 'POST',
         headers: { 
           'Content-Type': 'application/json',
@@ -405,6 +410,7 @@ export default function Home() {
     }
   }
 
+  // Open book details function - FIXED
   const openBookDetails = async (book: Book) => {
     setSelectedBook(book)
     setModalLoading(true)
@@ -412,7 +418,7 @@ export default function Home() {
     setUserRating(0)
 
     try {
-      const response = await fetch(`http://localhost:5000/api/book/${encodeURIComponent(book.title)}`)
+      const response = await fetch(`${API_BASE_URL}/api/book/${encodeURIComponent(book.title)}`)
       const data = await response.json()
       
       if (response.ok) {
@@ -557,7 +563,7 @@ export default function Home() {
                   <div className="relative">
                     <div className="absolute inset-0 bg-gradient-to-r from-indigo-100 to-blue-100 dark:from-indigo-900/30 dark:to-blue-900/30 rounded-2xl blur opacity-40"></div>
                     <div className="relative bg-white/90 dark:bg-slate-800/90 backdrop-blur-sm rounded-2xl p-4 sm:p-6 shadow-lg border border-slate-200/50 dark:border-slate-700/50">
-                      <div className="text-2xl sm:text-3xl lg:text-4xl font-black text-transparent bg-clip-text bg-gradient-to-r from-indigo-600 to-blue-600 mb-2">10K+</div>
+                      <div className="text-2xl sm:text-3xl lg:text-4xl font-black text-transparent bg-clip-text bg-gradient-to-r from-indigo-600 to-blue-600 mb-2">270K+</div>
                       <div className="text-xs sm:text-sm text-slate-600 dark:text-slate-400 font-semibold uppercase tracking-wider">Books</div>
                     </div>
                   </div>
