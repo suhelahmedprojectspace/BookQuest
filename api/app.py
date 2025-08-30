@@ -215,7 +215,9 @@ def load_data_and_models():
             start_time = time.time()
             
             # Load data with proper column mapping
-            data = pd.read_csv(CSV_PATH, low_memory=False)
+            data = pd.read_csv(CSV_PATH, low_memory=False, chunksize=50000)
+            if hasattr(data, '__iter__'):  
+                data = pd.concat(data, ignore_index=True)
             print(f"📊 Loaded {len(data)} books in {time.time() - start_time:.2f}s")
             print(f"📊 Dataset columns: {list(data.columns)}")
             
