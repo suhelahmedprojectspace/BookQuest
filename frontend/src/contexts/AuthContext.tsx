@@ -28,7 +28,6 @@ export function useAuth() {
   return context;
 }
 
-// ✅ Added SSR guards to all cookie/localStorage functions
 const setCookie = (name: string, value: string, days: number = 7) => {
   if (typeof window === 'undefined') return; // SSR guard
   const expires = new Date();
