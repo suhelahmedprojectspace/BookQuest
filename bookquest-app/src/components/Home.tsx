@@ -1,5 +1,5 @@
 'use client'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import BookCard from '@/components/BookCard'
 import Modal from '@/components/Modal'
 
@@ -35,7 +35,7 @@ interface BookDetails {
   error?: string
 }
 
-// ✅ Backend data interfaces based on your console logs
+// Backend data interfaces based on your console logs
 interface GenreData {
   count: number
   name: string
@@ -92,7 +92,7 @@ export default function Home() {
     return Array.isArray(favorites) ? favorites : []
   }
 
-  // ✅ BULLETPROOF Safe rendering helper - COMPLETE FIX for your backend structure
+  // BULLETPROOF Safe rendering helper - COMPLETE FIX for your backend structure
   const safeRenderValue = (value: unknown): string => {
     try {
       if (value === null || value === undefined) return '0'
@@ -117,7 +117,7 @@ export default function Home() {
     }
   }
 
-  // ✅ SAFE Select Options Renderer - Handles your backend object structure
+  // SAFE Select Options Renderer - Handles your backend object structure
   const renderSelectOptions = (items: (GenreData | AuthorData | string)[], prefix: string = 'option') => {
     return items.map((item, index) => {
       let value: string
@@ -140,10 +140,10 @@ export default function Home() {
     })
   }
 
-  // ✅ SAFE debug function - won't crash if objects are passed
+  // SAFE debug function - won't crash if objects are passed
   const debugApiResponse = (label: string, data: unknown) => {
     if (process.env.NODE_ENV === 'development') {
-      console.log(`🔍 ${label}:`, {
+      console.log(`Debug ${label}:`, {
         type: typeof data,
         isArray: Array.isArray(data),
         value: data,
@@ -152,22 +152,8 @@ export default function Home() {
     }
   }
 
-  // ✅ Extract genre names for display and filtering
-  const getGenreNames = (): string[] => {
-    return availableGenres.map(genre => 
-      typeof genre === 'object' && genre.name ? genre.name : String(genre)
-    )
-  }
-
-  // ✅ Extract author names for display and filtering  
-  const getAuthorNames = (): string[] => {
-    return availableAuthors.map(author => 
-      typeof author === 'object' && author.name ? author.name : String(author)
-    )
-  }
-
   // Fetch available genres and authors - FIXED for your backend structure
-  const fetchGenresAndAuthors = async () => {
+  const fetchGenresAndAuthors = useCallback(async () => {
     try {
       const [genresRes, authorsRes] = await Promise.all([
         fetch(`${API_BASE_URL}/api/genres`),
@@ -178,7 +164,7 @@ export default function Home() {
         const genresData = await genresRes.json()
         debugApiResponse('Genres API', genresData)
         
-        // ✅ SAFE extraction based on your backend structure
+        // SAFE extraction based on your backend structure
         if (Array.isArray(genresData)) {
           setAvailableGenres(genresData)
         } else if (genresData && typeof genresData === 'object' && Array.isArray(genresData.genres)) {
@@ -194,7 +180,7 @@ export default function Home() {
         const authorsData = await authorsRes.json()
         debugApiResponse('Authors API', authorsData)
         
-        // ✅ SAFE extraction based on your backend structure
+        // SAFE extraction based on your backend structure
         if (Array.isArray(authorsData)) {
           setAvailableAuthors(authorsData)
         } else if (authorsData && typeof authorsData === 'object' && Array.isArray(authorsData.authors)) {
@@ -210,75 +196,29 @@ export default function Home() {
       setAvailableGenres([])
       setAvailableAuthors([])
     }
-  }
-
-  // Handle component mounting for SSR/CSR compatibility
-  useEffect(() => {
-    setMounted(true)
   }, [])
 
-  useEffect(() => {
-    if (!mounted) return
-
-    console.log('🔄 Component mounted, initializing...')
-    
-    // ✅ SAFE localStorage access
-    if (typeof window !== 'undefined') {
-      const recent = localStorage.getItem('recentSearches')
-      if (recent) {
-        try {
-          const parsedRecent = JSON.parse(recent)
-          setSearchHistory(Array.isArray(parsedRecent) ? parsedRecent : [])
-        } catch {
-          setSearchHistory([])
-        }
-      }
-
-      // Load user preferences
-      const preferences = localStorage.getItem('userPreferences')
-      if (preferences) {
-        try {
-          const parsedPreferences = JSON.parse(preferences)
-          setUserPreferences(parsedPreferences || {})
-        } catch {
-          setUserPreferences({})
-        }
-      }
-
-      const urlParams = new URLSearchParams(window.location.search)
-      const searchParam = urlParams.get('search')
-      if (searchParam) {
-        setQuery(searchParam)
-        setTimeout(() => performSearch(searchParam), 100)
-      }
-    }
-
-    fetchFavorites()
-    fetchGenresAndAuthors()
-    testBackendConnection()
-  }, [mounted])
-
   // Test backend connection - FIXED
-  const testBackendConnection = async () => {
-    console.log('🧪 Testing backend connection...')
+  const testBackendConnection = useCallback(async () => {
+    console.log('Testing backend connection...')
     try {
       const response = await fetch(`${API_BASE_URL}/api/health`)
       if (response.ok) {
         const data = await response.json()
-        console.log('✅ Backend health check passed:', data)
+        console.log('Backend health check passed:', data)
         debugApiResponse('Backend Health', data)
       } else {
-        console.error('❌ Backend health check failed:', response.status)
+        console.error('Backend health check failed:', response.status)
       }
     } catch (error) {
-      console.error('❌ Backend connection failed:', error)
+      console.error('Backend connection failed:', error)
       setError('Cannot connect to server. Please check your connection.')
     }
-  }
+  }, [])
 
   // Enhanced fetchFavorites with proper error handling - FIXED
-  const fetchFavorites = async () => {
-    console.log('❤️ Fetching favorites...')
+  const fetchFavorites = useCallback(async () => {
+    console.log('Fetching favorites...')
     try {
       const token = typeof window !== 'undefined' ? localStorage.getItem('auth_token') : null
       
@@ -294,47 +234,39 @@ export default function Home() {
       
       if (response.ok) {
         const data = await response.json()
-        console.log('✅ Favorites response:', data)
+        console.log('Favorites response:', data)
         debugApiResponse('Favorites API', data)
         
-        // ✅ SAFE favorites handling
+        // SAFE favorites handling
         if (Array.isArray(data)) {
           setFavorites(data)
         } else if (data && typeof data === 'object' && Array.isArray(data.favorites)) {
           setFavorites(data.favorites)
         } else {
-          console.warn('⚠️ Favorites API returned non-array:', data)
+          console.warn('Favorites API returned non-array:', data)
           setFavorites([])
         }
       } else if (response.status === 401) {
-        console.log('ℹ️ User not authenticated, skipping favorites')
+        console.log('User not authenticated, skipping favorites')
         setFavorites([])
       } else {
-        console.error('❌ Failed to fetch favorites:', response.status)
+        console.error('Failed to fetch favorites:', response.status)
         setFavorites([])
       }
     } catch (err) {
-      console.error('❌ Error fetching favorites:', err)
+      console.error('Error fetching favorites:', err)
       setFavorites([])
     }
-  }
-
-  const addToHistory = (search: string) => {
-    const updated = [search, ...searchHistory.filter(h => h !== search)].slice(0, 5)
-    setSearchHistory(updated)
-    if (typeof window !== 'undefined') {
-      localStorage.setItem('recentSearches', JSON.stringify(updated))
-    }
-  }
+  }, [])
 
   // Enhanced search function with multiple modes - FIXED
-  const performSearch = async (searchQuery: string, mode: string = searchMode) => {
+  const performSearch = useCallback(async (searchQuery: string, mode: string = searchMode) => {
     if (!searchQuery?.trim()) {
-      console.log('❌ Empty search query')
+      console.log('Empty search query')
       return
     }
     
-    console.log(`🔍 Starting ${mode} search for:`, searchQuery)
+    console.log(`Starting ${mode} search for:`, searchQuery)
     
     setLoading(true)
     setError('')
@@ -372,20 +304,20 @@ export default function Home() {
           url = `${API_BASE_URL}/api/recommend?q=${encodeURIComponent(searchQuery)}`
       }
       
-      console.log('📡 Making request to:', url)
+      console.log('Making request to:', url)
       
       const response = await fetch(url, requestOptions)
-      console.log('📊 Response status:', response.status)
+      console.log('Response status:', response.status)
       
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`)
       }
       
       const data = await response.json()
-      console.log('✅ Raw API response:', data)
+      console.log('Raw API response:', data)
       debugApiResponse('Search API', data)
       
-      // ✅ SAFE extraction of recommendations
+      // SAFE extraction of recommendations
       let recommendations: Book[] = []
       if (data && typeof data === 'object') {
         if (Array.isArray(data.recommendations)) {
@@ -398,7 +330,7 @@ export default function Home() {
       }
       
       if (recommendations.length > 0) {
-        console.log('🔍 Applying filters...')
+        console.log('Applying filters...')
         
         // Apply filters
         let filteredBooks = recommendations.filter((book: Book) => {
@@ -415,11 +347,11 @@ export default function Home() {
           return meetsRating && meetsAuthor && meetsGenre
         })
         
-        console.log('📚 Filtered books:', filteredBooks)
+        console.log('Filtered books:', filteredBooks)
         
         // If no books pass filters, show all books instead of empty list
         if (filteredBooks.length === 0 && recommendations.length > 0) {
-          console.log('⚠️ Filters removed all books, showing unfiltered results')
+          console.log('Filters removed all books, showing unfiltered results')
           filteredBooks = recommendations
           setError('Your current filters were too restrictive. Showing all results.')
         } else {
@@ -429,20 +361,75 @@ export default function Home() {
         setBooks(filteredBooks)
         
       } else {
-        console.error('❌ No recommendations found:', data)
+        console.error('No recommendations found:', data)
         setError('No books found for your search.')
         setBooks([])
       }
     } catch (err: unknown) {
-      console.error('❌ Fetch error:', err)
+      console.error('Fetch error:', err)
       setError('Failed to connect to server. Please check your connection.')
     } finally {
       setLoading(false)
     }
+  }, [searchMode, filters, userPreferences])
+
+  const addToHistory = (search: string) => {
+    const updated = [search, ...searchHistory.filter(h => h !== search)].slice(0, 5)
+    setSearchHistory(updated)
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('recentSearches', JSON.stringify(updated))
+    }
   }
 
+  // Handle component mounting for SSR/CSR compatibility
+  useEffect(() => {
+    setMounted(true)
+  }, [])
+
+  // Fixed useEffect with proper dependencies
+  useEffect(() => {
+    if (!mounted) return
+
+    console.log('Component mounted, initializing...')
+    
+    // SAFE localStorage access
+    if (typeof window !== 'undefined') {
+      const recent = localStorage.getItem('recentSearches')
+      if (recent) {
+        try {
+          const parsedRecent = JSON.parse(recent)
+          setSearchHistory(Array.isArray(parsedRecent) ? parsedRecent : [])
+        } catch {
+          setSearchHistory([])
+        }
+      }
+
+      // Load user preferences
+      const preferences = localStorage.getItem('userPreferences')
+      if (preferences) {
+        try {
+          const parsedPreferences = JSON.parse(preferences)
+          setUserPreferences(parsedPreferences || {})
+        } catch {
+          setUserPreferences({})
+        }
+      }
+
+      const urlParams = new URLSearchParams(window.location.search)
+      const searchParam = urlParams.get('search')
+      if (searchParam) {
+        setQuery(searchParam)
+        setTimeout(() => performSearch(searchParam), 100)
+      }
+    }
+
+    fetchFavorites()
+    fetchGenresAndAuthors()
+    testBackendConnection()
+  }, [mounted, fetchFavorites, fetchGenresAndAuthors, testBackendConnection, performSearch])
+
   const searchBooks = () => {
-    console.log('🚀 Search button clicked, query:', query, 'mode:', searchMode)
+    console.log('Search button clicked, query:', query, 'mode:', searchMode)
     performSearch(query, searchMode)
   }
 
@@ -452,14 +439,6 @@ export default function Home() {
     setQuery(genreName)
     setSearchMode('genre')
     performSearch(genreName, 'genre')
-  }
-
-  // Quick author search - Updated to handle object structure
-  const searchByAuthor = (author: string | AuthorData) => {
-    const authorName = typeof author === 'object' ? author.name : author
-    setQuery(authorName)
-    setSearchMode('author')
-    performSearch(authorName, 'author')
   }
 
   // Add to user preferences
@@ -720,7 +699,7 @@ export default function Home() {
                 </div>
               </div>
 
-              {/* ✅ BULLETPROOF Stats Bar - COMPLETELY FIXED */}
+              {/* BULLETPROOF Stats Bar - COMPLETELY FIXED */}
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 sm:gap-6 mb-12 max-w-4xl mx-auto px-4">
                 <div className="text-center">
                   <div className="relative">
@@ -802,7 +781,7 @@ export default function Home() {
             <div className="absolute inset-0 bg-gradient-to-r from-indigo-100 to-purple-100 dark:from-indigo-900/30 dark:to-purple-900/30 rounded-2xl blur opacity-50"></div>
             <div className="relative bg-white/80 dark:bg-slate-800/80 backdrop-blur-xl border border-slate-200/70 dark:border-slate-700/50 rounded-2xl p-6 shadow-lg">
               
-              {/* Search Mode Tabs */}
+              {/* Search Mode Tabs - FIXED: Removed the 'any' cast */}
               <div className="flex flex-wrap gap-2 mb-6 justify-center">
                 {[
                   { key: 'title', label: 'By Title', icon: '📚' },
@@ -812,7 +791,7 @@ export default function Home() {
                 ].map(mode => (
                   <button
                     key={mode.key}
-                    onClick={() => setSearchMode(mode.key as any)}
+                    onClick={() => setSearchMode(mode.key as 'title' | 'genre' | 'author' | 'hybrid')}
                     className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-300 ${
                       searchMode === mode.key
                         ? 'bg-indigo-600 text-white shadow-md'
