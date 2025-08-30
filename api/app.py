@@ -20,6 +20,9 @@ from collections import Counter
 from dotenv import load_dotenv
 import threading
 import time
+import pickle
+import signal
+import sys
 
 # Load environment variables
 load_dotenv()
@@ -47,20 +50,268 @@ basedir = os.path.abspath(os.path.dirname(__file__))
 CSV_PATH = os.path.join(basedir, 'Books.csv')
 DB_PATH = os.path.join(basedir, 'readly.db')
 
-# Global variables for models - LAZY LOADING IMPLEMENTATION
+# Optimized file paths for preprocessed data
+PROCESSED_DATA_PATH = os.path.join(basedir, 'processed_data.pkl')
+FEATURES_PATH = os.path.join(basedir, 'features.pkl')
+MODELS_PATH = os.path.join(basedir, 'models.pkl')
+
+# Global variables for models - STARTUP LOADING
 content_model = None
 collaborative_model = None
 data = None
 user_item_matrix = None
 book_features = None
 vectorizer = None
-_data_loaded = False
-_data_loading = False
-_load_lock = threading.Lock()
+models_loaded = False
+models_loading = False
+loading_lock = threading.Lock()
+
+# Signal handlers for graceful shutdown
+def signal_handler(sig, frame):
+    print('🛑 Graceful shutdown initiated...')
+    sys.exit(0)
+
+signal.signal(signal.SIGTERM, signal_handler)
+signal.signal(signal.SIGINT, signal_handler)
 
 def get_current_timestamp():
     """Get current timestamp as ISO string for SQLite"""
     return datetime.now().isoformat()
+
+def create_optimized_dataset():
+    """Create and save optimized, smaller dataset for faster loading"""
+    global data
+    
+    print("🔄 PREPROCESSING: Creating optimized dataset...")
+    start_time = time.time()
+    
+    try:
+        # Load full dataset in chunks to prevent memory issues
+        print("📊 Reading CSV in chunks...")
+        chunk_size = 50000
+        chunks = []
+        
+        for chunk in pd.read_csv(CSV_PATH, low_memory=False, chunksize=chunk_size):
+            chunks.append(chunk)
+            if len(chunks) * chunk_size >= 100000:  # Limit to 100K books max
+                break
+        
+        full_data = pd.concat(chunks, ignore_index=True)
+        print(f"📊 Loaded dataset: {len(full_data)} books")
+        
+        # Map column names
+        column_mapping = {
+            'Book-Title': 'title',
+            'Book-Author': 'author', 
+            'Publisher': 'publisher',
+            'Year-Of-Publication': 'year',
+            'Image-URL-M': 'image',
+            'Image-URL-S': 'image_small',
+            'Image-URL-L': 'image_large',
+            'ISBN': 'isbn'
+        }
+        
+        full_data = full_data.rename(columns=column_mapping)
+        
+        # Clean the data
+        full_data = full_data.dropna(subset=['title', 'author'])
+        full_data['title'] = full_data['title'].astype(str).str.strip()
+        full_data['author'] = full_data['author'].astype(str).str.strip()
+        full_data['publisher'] = full_data['publisher'].fillna('Unknown Publisher').astype(str)
+        full_data['year'] = pd.to_numeric(full_data['year'], errors='coerce').fillna(2000).astype(int)
+        
+        # Take a representative sample
+        sample_size = min(50000, len(full_data))  # Reduced for faster processing
+        data = full_data.sample(n=sample_size, random_state=42).reset_index(drop=True)
+        
+        print(f"📊 Selected {len(data)} representative books")
+        
+        # Add synthetic data
+        np.random.seed(42)
+        data['rating'] = np.random.uniform(3.0, 9.5, len(data)).round(1)
+        data['user_ratings'] = np.random.randint(50, 500, len(data))
+        data['genre'] = 'General Fiction'
+        
+        # Optimized genre classification
+        genre_keywords = {
+            'Mystery/Thriller': ['mystery', 'detective', 'murder', 'crime', 'investigation', 'thriller', 'suspense', 'police', 'criminal'],
+            'Romance': ['love', 'romance', 'heart', 'passion', 'wedding', 'bride', 'kiss', 'dating', 'relationship'],
+            'Fantasy': ['magic', 'wizard', 'dragon', 'fantasy', 'enchanted', 'spell', 'realm', 'fairy', 'mythical', 'quest'],
+            'Science Fiction': ['space', 'future', 'robot', 'sci-fi', 'alien', 'galaxy', 'time', 'technology', 'mars', 'star'],
+            'Horror': ['horror', 'ghost', 'dark', 'fear', 'nightmare', 'haunted', 'terror', 'vampire', 'zombie', 'evil'],
+            'Biography/Memoir': ['life', 'biography', 'memoir', 'story of', 'autobiography', 'true story', 'personal'],
+            'History': ['history', 'war', 'historical', 'century', 'battle', 'ancient', 'civilization', 'world war'],
+            'Children/Young Adult': ['children', 'kid', 'young', 'junior', 'teen', 'school', 'adventure', 'family'],
+            'Business/Self-Help': ['business', 'success', 'leadership', 'management', 'entrepreneur', 'self-help', 'guide'],
+            'Health/Fitness': ['health', 'fitness', 'diet', 'nutrition', 'exercise', 'wellness', 'medical']
+        }
+        
+        # Apply genre classification using both title and author
+        for genre, keywords in genre_keywords.items():
+            for keyword in keywords:
+                title_mask = data['title'].str.contains(keyword, case=False, na=False)
+                author_mask = data['author'].str.contains(keyword, case=False, na=False)
+                combined_mask = title_mask | author_mask
+                data.loc[combined_mask, 'genre'] = genre
+        
+        # Create reading difficulty level
+        data['reading_level'] = np.random.choice(['Beginner', 'Intermediate', 'Advanced'], 
+                                               size=len(data), p=[0.3, 0.5, 0.2])
+        
+        # Create popularity score
+        data['popularity_score'] = (data['rating'] * 0.7 + 
+                                  (data['user_ratings'] / data['user_ratings'].max()) * 100 * 0.3)
+        
+        # Create combined features for content-based filtering
+        data['combined_features'] = (
+            data['title'].fillna('') + ' ' + 
+            data['author'].fillna('') + ' ' + 
+            data['genre'].fillna('') + ' ' +
+            data['publisher'].fillna('') + ' ' +
+            data['reading_level'].fillna('')
+        )
+        
+        # Save processed data
+        with open(PROCESSED_DATA_PATH, 'wb') as f:
+            pickle.dump(data, f)
+        
+        print(f"✅ PREPROCESSING: Saved optimized dataset in {time.time() - start_time:.2f}s")
+        return data
+        
+    except Exception as e:
+        print(f"❌ PREPROCESSING ERROR: {e}")
+        return None
+
+def load_models_at_startup():
+    """Load all models and data at startup - NO LAZY LOADING"""
+    global content_model, collaborative_model, data, user_item_matrix, book_features, vectorizer
+    global models_loaded, models_loading
+    
+    with loading_lock:
+        if models_loaded or models_loading:
+            return models_loaded
+        
+        models_loading = True
+        
+        try:
+            print("🚀 STARTUP LOADING: Starting model and data loading...")
+            start_time = time.time()
+            
+            # Try to load preprocessed data first
+            if os.path.exists(PROCESSED_DATA_PATH):
+                print("📦 Loading preprocessed data...")
+                with open(PROCESSED_DATA_PATH, 'rb') as f:
+                    data = pickle.load(f)
+                print(f"✅ Loaded {len(data)} preprocessed books")
+            else:
+                print("📊 Creating preprocessed data (first time)...")
+                data = create_optimized_dataset()
+                if data is None:
+                    raise Exception("Failed to create dataset")
+            
+            # Check if models are already saved
+            if os.path.exists(MODELS_PATH) and os.path.exists(FEATURES_PATH):
+                print("🤖 Loading pre-trained models...")
+                
+                with open(MODELS_PATH, 'rb') as f:
+                    model_data = pickle.load(f)
+                    content_model = model_data['content_model']
+                    vectorizer = model_data['vectorizer']
+                    collaborative_model = model_data.get('collaborative_model')
+                    user_item_matrix = model_data.get('user_item_matrix')
+                
+                with open(FEATURES_PATH, 'rb') as f:
+                    book_features = pickle.load(f)
+                    
+                print("✅ Pre-trained models loaded successfully!")
+            else:
+                print("🔧 Training models (first time)...")
+                
+                # Create TF-IDF vectorizer (optimized)
+                print("🔧 Creating TF-IDF vectorizer...")
+                vectorizer = TfidfVectorizer(
+                    stop_words='english',
+                    max_features=5000,  # Reduced from 8000
+                    ngram_range=(1, 2),  # Reduced from (1, 3)
+                    min_df=3,
+                    max_df=0.9,
+                    lowercase=True,
+                    strip_accents='unicode'
+                )
+                
+                book_features = vectorizer.fit_transform(data['combined_features'])
+                print(f"📊 Created feature matrix: {book_features.shape}")
+                
+                # Content-based model with optimized parameters
+                print("🤖 Training content-based recommendation model...")
+                content_model = NearestNeighbors(
+                    metric='cosine', 
+                    algorithm='brute', 
+                    n_neighbors=min(20, len(data))  # Reduced neighbors
+                )
+                content_model.fit(book_features)
+                print("✅ Content-based model trained!")
+                
+                # Create collaborative filtering model
+                print("🤝 Creating collaborative filtering model...")
+                try:
+                    n_users = min(500, len(data))  # Reduced users
+                    n_books = len(data)
+                    
+                    # Generate synthetic user-book interaction matrix
+                    np.random.seed(42)
+                    user_book_ratings = np.random.choice([0, 1, 2, 3, 4, 5], 
+                                                       size=(n_users, n_books), 
+                                                       p=[0.8, 0.04, 0.04, 0.08, 0.04, 0.04])
+                    
+                    user_item_matrix = csr_matrix(user_book_ratings)
+                    
+                    # Use SVD for dimensionality reduction
+                    if user_item_matrix.shape[0] > 20 and user_item_matrix.shape[1] > 20:
+                        collaborative_model = TruncatedSVD(n_components=30, random_state=42)
+                        collaborative_model.fit(user_item_matrix)
+                        print("✅ Collaborative filtering model created successfully!")
+                    else:
+                        print("⚠️ Dataset too small for collaborative filtering")
+                        collaborative_model = None
+                        
+                except Exception as e:
+                    print(f"⚠️ Warning: Could not create collaborative filtering model: {e}")
+                    collaborative_model = None
+                    user_item_matrix = None
+                
+                # Save models for next startup
+                print("💾 Saving models for future startups...")
+                model_data = {
+                    'content_model': content_model,
+                    'vectorizer': vectorizer,
+                    'collaborative_model': collaborative_model,
+                    'user_item_matrix': user_item_matrix
+                }
+                
+                with open(MODELS_PATH, 'wb') as f:
+                    pickle.dump(model_data, f)
+                
+                with open(FEATURES_PATH, 'wb') as f:
+                    pickle.dump(book_features, f)
+                
+                print("✅ Models saved successfully!")
+            
+            models_loaded = True
+            models_loading = False
+            
+            total_time = time.time() - start_time
+            print(f"🎉 STARTUP LOADING: Complete in {total_time:.2f}s!")
+            print(f"📊 Ready with {len(data)} books and trained models!")
+            
+            return True
+            
+        except Exception as e:
+            print(f"❌ STARTUP LOADING ERROR: {e}")
+            import traceback
+            traceback.print_exc()
+            models_loading = False
+            return False
 
 def init_db():
     """Initialize SQLite database for analytics, user data, and authentication"""
@@ -196,170 +447,35 @@ def auth_required(f):
     
     return decorated_function
 
-def load_data_and_models():
-    """LAZY LOADING: Load data and create ML models only when first needed"""
-    global content_model, collaborative_model, data, user_item_matrix, book_features, vectorizer
-    global _data_loaded, _data_loading
-    
-    with _load_lock:
-        if _data_loaded:
-            return True
-            
-        if _data_loading:
-            return False
-            
-        _data_loading = True
+def models_ready_required(f):
+    """Decorator to check if models are loaded before processing requests"""
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if not models_loaded:
+            if models_loading:
+                return jsonify({
+                    'loading': True,
+                    'message': 'Models are loading, please try again in a moment',
+                    'status': 'loading'
+                }), 202  # 202 Accepted - still processing
+            else:
+                return jsonify({
+                    'error': 'Models failed to load',
+                    'status': 'error'
+                }), 503  # 503 Service Unavailable
         
-        try:
-            print("🔄 LAZY LOADING: Starting dataset and model loading...")
-            start_time = time.time()
-            
-            # Load data with proper column mapping
-            data = pd.read_csv(CSV_PATH, low_memory=False, chunksize=50000)
-            if hasattr(data, '__iter__'):  
-                data = pd.concat(data, ignore_index=True)
-            print(f"📊 Loaded {len(data)} books in {time.time() - start_time:.2f}s")
-            print(f"📊 Dataset columns: {list(data.columns)}")
-            
-            # Map column names to standard names
-            column_mapping = {
-                'Book-Title': 'title',
-                'Book-Author': 'author', 
-                'Publisher': 'publisher',
-                'Year-Of-Publication': 'year',
-                'Image-URL-M': 'image',
-                'Image-URL-S': 'image_small',
-                'Image-URL-L': 'image_large',
-                'ISBN': 'isbn'
-            }
-            
-            # Rename columns to match our code
-            data = data.rename(columns=column_mapping)
-            
-            # Clean the data
-            data = data.dropna(subset=['title', 'author'])  # Remove rows with missing essential data
-            data['title'] = data['title'].astype(str).str.strip()
-            data['author'] = data['author'].astype(str).str.strip()
-            data['publisher'] = data['publisher'].fillna('Unknown Publisher').astype(str)
-            data['year'] = pd.to_numeric(data['year'], errors='coerce').fillna(2000).astype(int)
-            
-            # Create synthetic ratings since your dataset doesn't have them
-            np.random.seed(42)
-            data['rating'] = np.random.uniform(3.0, 9.5, len(data))
-            data['rating'] = data['rating'].round(1)
-            
-            # Create synthetic user ratings for collaborative filtering
-            data['user_ratings'] = np.random.randint(50, 500, len(data))
-            
-            # Create genre column based on title and author analysis
-            data['genre'] = 'General Fiction'  # Default
-            
-            genre_keywords = {
-                'Mystery/Thriller': ['mystery', 'detective', 'murder', 'crime', 'investigation', 'thriller', 'suspense', 'police', 'criminal'],
-                'Romance': ['love', 'romance', 'heart', 'passion', 'wedding', 'bride', 'kiss', 'dating', 'relationship'],
-                'Fantasy': ['magic', 'wizard', 'dragon', 'fantasy', 'enchanted', 'spell', 'realm', 'fairy', 'mythical', 'quest'],
-                'Science Fiction': ['space', 'future', 'robot', 'sci-fi', 'alien', 'galaxy', 'time', 'technology', 'mars', 'star'],
-                'Horror': ['horror', 'ghost', 'dark', 'fear', 'nightmare', 'haunted', 'terror', 'vampire', 'zombie', 'evil'],
-                'Biography/Memoir': ['life', 'biography', 'memoir', 'story of', 'autobiography', 'true story', 'personal'],
-                'History': ['history', 'war', 'historical', 'century', 'battle', 'ancient', 'civilization', 'world war'],
-                'Children/Young Adult': ['children', 'kid', 'young', 'junior', 'teen', 'school', 'adventure', 'family'],
-                'Business/Self-Help': ['business', 'success', 'leadership', 'management', 'entrepreneur', 'self-help', 'guide'],
-                'Health/Fitness': ['health', 'fitness', 'diet', 'nutrition', 'exercise', 'wellness', 'medical']
-            }
-            
-            # Apply genre classification using both title and author
-            for genre, keywords in genre_keywords.items():
-                for keyword in keywords:
-                    title_mask = data['title'].str.contains(keyword, case=False, na=False)
-                    author_mask = data['author'].str.contains(keyword, case=False, na=False)
-                    combined_mask = title_mask | author_mask
-                    data.loc[combined_mask, 'genre'] = genre
-            
-            # Create reading difficulty level
-            data['reading_level'] = np.random.choice(['Beginner', 'Intermediate', 'Advanced'], 
-                                                   size=len(data), p=[0.3, 0.5, 0.2])
-            
-            # Create popularity score
-            data['popularity_score'] = (data['rating'] * 0.7 + 
-                                      (data['user_ratings'] / data['user_ratings'].max()) * 100 * 0.3)
-            
-            # Create combined features for content-based filtering
-            data['combined_features'] = (
-                data['title'].fillna('') + ' ' + 
-                data['author'].fillna('') + ' ' + 
-                data['genre'].fillna('') + ' ' +
-                data['publisher'].fillna('') + ' ' +
-                data['reading_level'].fillna('')
-            )
-            
-            print("🔧 Creating TF-IDF vectorizer...")
-            # Create TF-IDF vectorizer with optimized parameters
-            vectorizer = TfidfVectorizer(
-                stop_words='english',
-                max_features=8000,  # Increased for better recommendations
-                ngram_range=(1, 3),
-                min_df=2,
-                max_df=0.95,
-                lowercase=True,
-                strip_accents='unicode'
-            )
-            
-            book_features = vectorizer.fit_transform(data['combined_features'])
-            print(f"📊 Created feature matrix with shape: {book_features.shape}")
-            
-            # Content-based model with optimized parameters
-            print("🤖 Training content-based recommendation model...")
-            content_model = NearestNeighbors(
-                metric='cosine', 
-                algorithm='brute', 
-                n_neighbors=min(25, len(data))
-            )
-            content_model.fit(book_features)
-            
-            # Create collaborative filtering model
-            print("🤝 Creating collaborative filtering model...")
-            try:
-                # Create user-item matrix for collaborative filtering
-                n_users = min(1000, len(data))  # Limit users for memory efficiency
-                n_books = len(data)
-                
-                # Generate synthetic user-book interaction matrix
-                np.random.seed(42)
-                user_book_ratings = np.random.choice([0, 1, 2, 3, 4, 5], 
-                                                   size=(n_users, n_books), 
-                                                   p=[0.7, 0.05, 0.05, 0.1, 0.05, 0.05])
-                
-                user_item_matrix = csr_matrix(user_book_ratings)
-                
-                # Use SVD for dimensionality reduction
-                if user_item_matrix.shape[0] > 50 and user_item_matrix.shape[1] > 50:
-                    collaborative_model = TruncatedSVD(n_components=min(50, min(user_item_matrix.shape) - 1), 
-                                                     random_state=42)
-                    collaborative_model.fit(user_item_matrix)
-                    print("✅ Collaborative filtering model created successfully!")
-                else:
-                    print("⚠️ Dataset too small for collaborative filtering")
-                    collaborative_model = None
-                    
-            except Exception as e:
-                print(f"⚠️ Warning: Could not create collaborative filtering model: {e}")
-                collaborative_model = None
-                user_item_matrix = None
-            
-            _data_loaded = True
-            _data_loading = False
-            total_time = time.time() - start_time
-            print(f"✅ LAZY LOADING: All models loaded successfully in {total_time:.2f}s!")
-            
-            return True
-            
-        except Exception as e:
-            print(f"❌ LAZY LOADING ERROR: {e}")
-            import traceback
-            traceback.print_exc()
-            _data_loading = False
-            return False
+        return f(*args, **kwargs)
+    
+    return decorated_function
 
+# Initialize models in background thread at startup
+def start_model_loading():
+    """Start model loading in background thread"""
+    print("🚀 Starting background model loading...")
+    loading_thread = threading.Thread(target=load_models_at_startup, daemon=False)
+    loading_thread.start()
+
+# Existing utility functions (ALL PRESERVED)
 def extract_key_words(text, genre):
     """Extract key thematic words from text"""
     if not text:
@@ -448,12 +564,8 @@ def get_book_image_url(book_row):
     return f"https://via.placeholder.com/200x300/4a5568/ffffff?text={title}"
 
 def recommend(choice, method='content', user_id=None, limit=8):
-    """Enhanced recommendation algorithm with multiple methods"""
+    """Enhanced recommendation algorithm with multiple methods - NO LAZY LOADING"""
     global data, content_model, book_features, collaborative_model, user_item_matrix
-    
-    # LAZY LOADING: Load data only when needed
-    if not load_data_and_models():
-        return {'error': 'Models are loading, please try again in a moment', 'loading': True}
     
     if not choice or not choice.strip():
         # Return popular books when no specific choice is given
@@ -567,7 +679,7 @@ def get_collaborative_recommendations(choice_index, limit):
         user_similarities = np.dot(user_factors, user_factors.T)
         
         # Get top similar users
-        similar_users = np.argsort(user_similarities[0])[::-1][:50]
+        similar_users = np.argsort(user_similarities[0])[::-1][:20]  # Reduced users
         
         # Get books liked by similar users
         recommended_books = []
@@ -670,9 +782,6 @@ def get_recommendation_reason(method, genre):
 def get_genre_based_recommendations(genre, n_recommendations=10):
     """Get recommendations based on genre with enhanced features"""
     try:
-        if not load_data_and_models():
-            return {'error': 'Models loading', 'loading': True}
-        
         decoded_genre = unquote(genre)
         print(f"🎭 Getting recommendations for genre: '{decoded_genre}'")
         
@@ -709,9 +818,6 @@ def get_genre_based_recommendations(genre, n_recommendations=10):
 def get_author_based_recommendations(author, n_recommendations=10):
     """Get recommendations based on author with enhanced features"""
     try:
-        if not load_data_and_models():
-            return {'error': 'Models loading', 'loading': True}
-        
         decoded_author = unquote(author)
         print(f"✍️ Getting books by author: {decoded_author}")
         
@@ -834,38 +940,37 @@ def fetch_book_details_combined(book_title):
     print(f"🔍 Fetching book details for: {book_title}")
     
     # Try our local database first
-    if load_data_and_models():
-        local_book = data[data['title'].str.lower() == book_title.lower()]
-        if not local_book.empty:
-            book = local_book.iloc[0]
-            local_details = {
-                'title': str(book['title']),
-                'authors': [str(book['author'])],
-                'description': f"A {book['genre']} book by {book['author']}. Published by {book['publisher']} in {book['year']}.",
-                'averageRating': float(book['rating']),
-                'ratingsCount': int(book.get('user_ratings', 100)),
-                'publishedDate': str(book['year']),
-                'publisher': str(book['publisher']),
-                'categories': [str(book['genre'])],
-                'readingLevel': str(book.get('reading_level', 'Intermediate')),
-                'popularityScore': float(book.get('popularity_score', 0)),
-                'source': 'BookQuest Database'
-            }
-            
-            # Try to enhance with Google Books data
-            google_details = fetch_book_details_from_google(book_title)
-            if google_details:
-                # Merge local and Google data
-                local_details.update({
-                    'description': google_details.get('description', local_details['description']),
-                    'pageCount': google_details.get('pageCount'),
-                    'language': google_details.get('language'),
-                    'previewLink': google_details.get('previewLink'),
-                    'infoLink': google_details.get('infoLink'),
-                    'imageLinks': google_details.get('imageLinks')
-                })
-            
-            return local_details
+    local_book = data[data['title'].str.lower() == book_title.lower()]
+    if not local_book.empty:
+        book = local_book.iloc[0]
+        local_details = {
+            'title': str(book['title']),
+            'authors': [str(book['author'])],
+            'description': f"A {book['genre']} book by {book['author']}. Published by {book['publisher']} in {book['year']}.",
+            'averageRating': float(book['rating']),
+            'ratingsCount': int(book.get('user_ratings', 100)),
+            'publishedDate': str(book['year']),
+            'publisher': str(book['publisher']),
+            'categories': [str(book['genre'])],
+            'readingLevel': str(book.get('reading_level', 'Intermediate')),
+            'popularityScore': float(book.get('popularity_score', 0)),
+            'source': 'BookQuest Database'
+        }
+        
+        # Try to enhance with Google Books data
+        google_details = fetch_book_details_from_google(book_title)
+        if google_details:
+            # Merge local and Google data
+            local_details.update({
+                'description': google_details.get('description', local_details['description']),
+                'pageCount': google_details.get('pageCount'),
+                'language': google_details.get('language'),
+                'previewLink': google_details.get('previewLink'),
+                'infoLink': google_details.get('infoLink'),
+                'imageLinks': google_details.get('imageLinks')
+            })
+        
+        return local_details
     
     # Try Google Books API as fallback
     google_details = fetch_book_details_from_google(book_title)
@@ -1024,9 +1129,9 @@ def health():
     """Enhanced health check endpoint"""
     try:
         return jsonify({
-            'status': 'healthy' if _data_loaded else 'ready',
-            'model_loaded': _data_loaded,
-            'data_loading': _data_loading,
+            'status': 'healthy' if models_loaded else ('loading' if models_loading else 'ready'),
+            'model_loaded': models_loaded,
+            'data_loading': models_loading,
             'timestamp': get_current_timestamp(),
             'data_size': len(data) if data is not None else 0,
             'features': {
@@ -1046,8 +1151,9 @@ def health():
 
 @app.route('/api/recommend')
 @cross_origin()
+@models_ready_required
 def api_recommend():
-    """Enhanced book recommendations with multiple methods"""
+    """Enhanced book recommendations with multiple methods - NO LAZY LOADING"""
     query = request.args.get('q', '')
     method = request.args.get('method', 'content')  # content, collaborative, hybrid
     limit = min(int(request.args.get('limit', 8)), 20)  # Max 20 recommendations
@@ -1072,16 +1178,6 @@ def api_recommend():
                 user_id = user_info['user_id']
         
         recommendations = recommend(query, method, user_id, limit)
-        
-        # Handle loading state
-        if isinstance(recommendations, dict) and 'loading' in recommendations:
-            return jsonify({
-                'loading': True,
-                'message': 'Models are loading, please try again in a moment',
-                'query': query,
-                'recommendations': [],
-                'count': 0
-            }), 202  # 202 Accepted - processing
         
         print(f"✅ Found {len(recommendations)} recommendations")
         
@@ -1114,6 +1210,7 @@ def api_recommend():
 
 @app.route('/api/book/<path:book_title>')
 @cross_origin()
+@models_ready_required
 def get_book_details(book_title):
     """Get detailed book information from multiple sources"""
     print(f"📖 Getting details for: {book_title}")
@@ -1145,6 +1242,7 @@ def get_book_details(book_title):
 
 @app.route('/api/recommend/genre/<path:genre>')  
 @cross_origin()
+@models_ready_required
 def genre_recommend(genre):
     """Get recommendations by genre"""
     limit = min(int(request.args.get('limit', 12)), 20)
@@ -1152,17 +1250,6 @@ def genre_recommend(genre):
     
     try:
         recommendations = get_genre_based_recommendations(genre, limit)
-        
-        # Handle loading state
-        if isinstance(recommendations, dict) and 'loading' in recommendations:
-            return jsonify({
-                'loading': True,
-                'message': 'Models are loading, please try again in a moment',
-                'genre': unquote(genre),
-                'recommendations': [],
-                'count': 0
-            }), 202
-        
         decoded_genre = unquote(genre)
         
         return jsonify({
@@ -1181,6 +1268,7 @@ def genre_recommend(genre):
 
 @app.route('/api/recommend/author/<path:author>') 
 @cross_origin()
+@models_ready_required
 def author_recommend(author):
     """Get recommendations by author"""
     limit = min(int(request.args.get('limit', 12)), 20)
@@ -1188,17 +1276,6 @@ def author_recommend(author):
     
     try:
         recommendations = get_author_based_recommendations(author, limit)
-        
-        # Handle loading state
-        if isinstance(recommendations, dict) and 'loading' in recommendations:
-            return jsonify({
-                'loading': True,
-                'message': 'Models are loading, please try again in a moment',
-                'author': unquote(author),
-                'recommendations': [],
-                'count': 0
-            }), 202
-        
         decoded_author = unquote(author)
         
         return jsonify({
@@ -1217,6 +1294,7 @@ def author_recommend(author):
 
 @app.route('/api/recommend/hybrid', methods=['POST', 'OPTIONS'])
 @cross_origin()
+@models_ready_required
 def hybrid_recommend():
     """API endpoint for hybrid recommendations"""
     if request.method == 'OPTIONS':
@@ -1239,15 +1317,6 @@ def hybrid_recommend():
         if book_title:
             recommendations = recommend(book_title, 'hybrid', user_id, limit)
             
-            # Handle loading state
-            if isinstance(recommendations, dict) and 'loading' in recommendations:
-                return jsonify({
-                    'loading': True,
-                    'message': 'Models are loading, please try again in a moment',
-                    'recommendations': [],
-                    'count': 0
-                }), 202
-            
             return jsonify({
                 'recommendations': recommendations,
                 'count': len(recommendations),
@@ -1266,12 +1335,10 @@ def hybrid_recommend():
 
 @app.route('/api/genres')
 @cross_origin()
+@models_ready_required
 def get_genres():
     """Get all available genres"""
     try:
-        if not load_data_and_models():
-            return jsonify({'loading': True, 'genres': []}), 202
-        
         if data is not None and 'genre' in data.columns:
             # Get genres with their counts
             genre_counts = data['genre'].value_counts()
@@ -1316,12 +1383,10 @@ def get_genres():
 
 @app.route('/api/authors')
 @cross_origin()
+@models_ready_required
 def get_authors():
     """Get popular authors with their book counts"""
     try:
-        if not load_data_and_models():
-            return jsonify({'loading': True, 'authors': []}), 202
-        
         if data is not None and 'author' in data.columns:
             # Get top authors by book count
             author_counts = data['author'].value_counts()
@@ -1356,12 +1421,10 @@ def get_authors():
 
 @app.route('/api/popular')
 @cross_origin()
+@models_ready_required
 def get_popular_books():
     """Get popular books with enhanced metadata"""
     try:
-        if not load_data_and_models():
-            return jsonify({'loading': True, 'books': []}), 202
-        
         limit = min(int(request.args.get('limit', 20)), 50)
         sort_by = request.args.get('sort', 'popularity')  # popularity, rating, recent
         
@@ -1593,6 +1656,7 @@ def get_analytics():
 
 @app.route('/api/search/suggestions')
 @cross_origin()
+@models_ready_required
 def search_suggestions():
     """Get search suggestions based on partial input"""
     try:
@@ -1601,9 +1665,6 @@ def search_suggestions():
         
         if len(query) < 2:
             return jsonify({'suggestions': []})
-        
-        if not load_data_and_models():
-            return jsonify({'loading': True, 'suggestions': []}), 202
         
         # Get title suggestions
         title_matches = data[data['title'].str.contains(query, case=False, na=False)]['title'].head(limit//2).tolist()
@@ -1635,13 +1696,17 @@ def search_suggestions():
         print(f"❌ Error getting suggestions: {e}")
         return jsonify({'suggestions': []})
 
-# Initialize database
+# Initialize database and start model loading
 init_db()
+
+# Start model loading immediately when the module is imported
+print("🚀 Starting BookQuest backend with STARTUP MODEL LOADING...")
+start_model_loading()
 
 # Production deployment configuration
 if __name__ == "__main__":
     port = int(os.environ.get('PORT', 5000))
-    print("🚀 Starting BookQuest backend with LAZY LOADING...")
+    print("🚀 BookQuest backend ready!")
     print("📊 Features: ML Recommendations, User Auth, Analytics, Google Books API")
-    print("🔄 Models will load on first API request to prevent timeout")
-    app.run(debug=False, host='0.0.0.0', port=port)
+    print("✅ Models will be loaded at startup - no more timeouts!")
+    app.run(debug=False, host='0.0.0.0', port=port, threaded=True)
